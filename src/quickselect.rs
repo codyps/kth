@@ -142,6 +142,8 @@ pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize)
 
 #[cfg(test)]
 mod test {
+    use quickcheck::TestResult;
+
     fn is_sorted<T: Ord>(a: &[T]) -> bool {
         for w in a.windows(2) {
             if w[0] > w[1] {
@@ -152,19 +154,34 @@ mod test {
         true
     }
 
+    fn is_partitioned<T: Ord>(x: &[T], p: usize) -> bool {
+        for i in 0..x.len() {
+            if i < p {
+                if !(x[i] <= x[p]) {
+                    return false;
+                }
+            } else if i > p {
+                if !(x[i] >= x[p]) {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
 
     quickcheck! {
-        fn median5(d: Vec<u8>) -> bool {
+        fn median5(d: Vec<u8>) -> TestResult {
             let mut d = d;
             if d.len() < 5 {
-                return true;
+                return TestResult::discard();
             }
             let d = index_fixed!(&mut d;..5);
             super::median5(d);
 
             // XXX: this is a sort check, as median5 is currently a sort. Relax to a partitioning
             // check
-            is_sorted(d)
+            TestResult::from_bool(is_sorted(d))
         }
     }
 
@@ -176,20 +193,9 @@ mod test {
             println!("{}:{}: Check failed: {} == {}", file!(), line!(), op, x[p]);
             return Err(());
         }
-        for i in 0..x.len() {
-            if i < p {
-                // FIXME: consider if the == is to permisive in this check, do all of the ==
-                // numbers need to be adjacent to the pivot? Or is non-adjacency allowed?
-                if !(x[i] <= x[p]) {
-                    println!("{}:{}: Check failed: {} < {}", file!(), line!(), x[i], x[p]);
-                    return Err(());
-                }
-            } else if i > p {
-                if !(x[i] >= x[p]) {
-                    println!("{}:{}: Check failed: {} > {}", file!(), line!(), x[i], x[p]);
-                    return Err(());
-                }
-            }
+        if !is_partitioned(x, p) {
+            println!("{}:{}: not partitioned", file!(), line!());
+            return Err(());
         }
 
         return Ok(p);
@@ -207,13 +213,15 @@ mod test {
     }
 
     quickcheck!{
-        fn qc_hp(data: Vec<u8>, pos: usize) -> bool {
+        fn qc_hp(data: Vec<u8>, pos: usize) -> TestResult {
             let mut d = data;
             if d.len() == 0 {
-                return true;
+                return TestResult::discard();
             }
-            let p = if pos > 0 { pos % d.len() } else { 0 };
-            check_hp(&mut d[..], p).is_ok()
+            if pos >= d.len() {
+                return TestResult::discard();
+            }
+            TestResult::from_bool(check_hp(&mut d[..], pos).is_ok())
         }
     }
 
