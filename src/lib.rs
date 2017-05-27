@@ -2,4 +2,5 @@
 #[macro_use]
 extern crate quickcheck;
 
-mod quickselect;
+pub mod quickselect;
+
