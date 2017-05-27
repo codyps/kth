@@ -1,0 +1,9 @@
+[package]
+name = "kth"
+version = "0.1.0"
+authors = ["nyx"]
+
+[dependencies]
+
+[dev-dependencies]
+quickcheck = "*"
