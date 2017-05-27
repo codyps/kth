@@ -27,7 +27,7 @@ pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [
 /// This network was taken from
 /// http://www.angelfire.com/blog/ronz/Articles/999SortingNetworksReferen.html , which in turn
 /// references Knuth's TAOCP volume 3.
-fn median5<T: Ord>(a: &mut [T])
+fn median5<T: Ord>(a: &mut [T;5])
 {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
@@ -68,7 +68,7 @@ pub fn median_of_medians<T: Ord>(a: &mut [T])
     let mut j = 0;
 
     while i + 4 < a.len() {
-        median5(a);
+        median5(index_fixed!(&mut a;..5));
         a.swap(i+2, j);
         i += 5;
         j += 1;
@@ -142,6 +142,32 @@ pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize)
 
 #[cfg(test)]
 mod test {
+    fn is_sorted<T: Ord>(a: &[T]) -> bool {
+        for w in a.windows(2) {
+            if w[0] > w[1] {
+                return false;
+            }
+        }
+
+        true
+    }
+
+
+    quickcheck! {
+        fn median5(d: Vec<u8>) -> bool {
+            let mut d = d;
+            if d.len() < 5 {
+                return true;
+            }
+            let d = index_fixed!(&mut d;..5);
+            super::median5(d);
+
+            // XXX: this is a sort check, as median5 is currently a sort. Relax to a partitioning
+            // check
+            is_sorted(d)
+        }
+    }
+
 
     fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize,()> {
         let op = x[pivot];

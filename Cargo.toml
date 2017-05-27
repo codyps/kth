@@ -1,9 +1,10 @@
 [package]
 name = "kth"
 version = "0.1.0"
-authors = ["nyx"]
+authors = ["Cody P Schafer <dev@codyps.com>"]
 
 [dependencies]
+index-fixed = "*"
 
 [dev-dependencies]
 quickcheck = "*"
