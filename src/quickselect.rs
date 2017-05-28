@@ -31,11 +31,17 @@ pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [
     }
 }
 
+/// Sort 5 elements in-place
+///
+/// # Implementation
+///
 /// This is a sorting network for 5 elements.
 ///
 /// This network was taken from
 /// http://www.angelfire.com/blog/ronz/Articles/999SortingNetworksReferen.html , which in turn
 /// references Knuth's TAOCP volume 3.
+///
+/// There may exist more efficient non-sorting network sorts that could replace this.
 pub fn sort5<T: Ord>(a: &mut [T;5])
 {
     let mut cswap = |i: usize, j: usize| {
@@ -56,6 +62,8 @@ pub fn sort5<T: Ord>(a: &mut [T;5])
 
 /// Find the median and partition around it in a 5 element array.
 ///
+/// # Implementation
+/// 
 /// Uses a 7 operation (7 comparison, <=7 swap) network. 6 comparison selection algorithms exist,
 /// this could be replaced with a more efficient algorithm.
 ///
@@ -78,7 +86,7 @@ pub fn partition5<T: Ord>(a: &mut [T;5])
 
 /// Sort 3 elements. This is equivalent to a theoretical `partition3`.
 ///
-/// A comparsion tree with at most 3 comparisons & 2 swaps.
+/// A comparison tree with at most 3 comparisons & 2 swaps.
 pub fn sort3<T: Ord>(a: &mut [T;3])
 {
     if a[0] <= a[1] {
@@ -177,12 +185,12 @@ pub fn median_of_medians<T: Ord>(a: &mut [T])
 ///
 /// Operates in O(n) time.
 ///
-/// *Panics*
+/// # Panics
 ///
 ///  - If `pivot` is not a valid index in `arr`.
 ///  - If `arr.len()` is 0
 ///
-/// *Internal Details*
+/// # Internal Details
 ///
 /// Moves two cursors (one from left & one from right).
 ///

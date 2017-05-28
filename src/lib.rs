@@ -16,12 +16,12 @@ pub trait SliceExtKth {
     ///
     /// The k-th element can then be read from `self[pivot_order]`, if desired.
     ///
-    /// *Panics*
+    /// # Panics
     ///
     ///  - If the slice has length zero.
     ///  - If the pivot_order is larger than the slice length.
     ///
-    /// *Examples*
+    /// # Examples
     ///
     /// ```
     /// use kth::SliceExtKth;

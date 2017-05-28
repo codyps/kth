@@ -26,11 +26,12 @@ quickcheck! {
             if data.len() == 0 {
                 return TestResult::discard();
             }
-            if pos >= data.len() {
+            if pi >= data.len() {
                 return TestResult::discard();
             }
 
-            let mut d = &mut data[..];
+            let mut d = data;
+            let mut d = &mut d[..];
             d.partition_by_kth(pi);
             TestResult::from_bool(is_partitioned(d, pi))
     }
