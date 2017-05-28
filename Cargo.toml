@@ -16,11 +16,11 @@ nightly = []
 index-fixed = "0.0"
 
 [build-dependencies]
-rustc_version = "*"
+rustc_version = "0.2"
 
 [dev-dependencies]
 quickcheck = "0.4"
-rand = "*"
+rand = "0.3"
 
 [profile.test]
 panic = "abort"
