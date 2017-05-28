@@ -161,7 +161,7 @@ pub fn median_of_medians<T: Ord>(a: &mut [T])
 {
     let l = a.len();
     if l < 5 {
-        hoare_partition(a, l/2);
+        return hoare_partition(a, l/2);
     }
 
     let mut i = 0;
