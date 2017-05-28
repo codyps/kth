@@ -3,6 +3,8 @@ name = "kth"
 version = "0.1.0"
 authors = ["Cody P Schafer <dev@codyps.com>"]
 keywords = ["nth_element", "partition", "median", "select"]
+repository = "https://github.com/jmesmon/kth"
+documentation = "https://docs.rs/kth"
 
 [dependencies]
 index-fixed = "0.0"
