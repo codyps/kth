@@ -2,9 +2,10 @@
 name = "kth"
 version = "0.1.0"
 authors = ["Cody P Schafer <dev@codyps.com>"]
-keywords = ["nth_element", "partition", "median", "select"]
+keywords = ["nth_element", "partition", "median", "select", "no_std"]
 repository = "https://github.com/jmesmon/kth"
 documentation = "https://docs.rs/kth"
+include = [ "Cargo.toml", "**/*.rs" ]
 
 [dependencies]
 index-fixed = "0.0"

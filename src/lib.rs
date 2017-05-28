@@ -1,3 +1,5 @@
+#[cfg_attr(not(test), no_std)]
+
 #[cfg(test)]
 #[macro_use]
 extern crate quickcheck;
