@@ -27,7 +27,7 @@ pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [
 /// This network was taken from
 /// http://www.angelfire.com/blog/ronz/Articles/999SortingNetworksReferen.html , which in turn
 /// references Knuth's TAOCP volume 3.
-fn median5<T: Ord>(a: &mut [T;5])
+pub fn sort5<T: Ord>(a: &mut [T;5])
 {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
@@ -45,17 +45,68 @@ fn median5<T: Ord>(a: &mut [T;5])
     cswap(1,2);
 }
 
+/// Find the median and partition around it in a 5 element array.
 ///
-/*
-fn median5_sa(a: &mut [T])
+/// Uses a 7 operation (7 comparison, <=7 swap) network. 6 comparison selection algorithms exist,
+/// this could be replaced with a more efficient algorithm.
+///
+/// Essentially the same as a sorting network for 5 elements, but with mixing for the outer 2
+/// removed. Saves 2 operations.
+pub fn median5<T: Ord>(a: &mut [T;5])
 {
-    if a[0] < a[1] {
-        if a[2] < a[3] {
-            if a[1] < a[2] {
+    let mut cswap = |i: usize, j: usize| {
+        if a[i] > a[j] {
+            a.swap(i, j)
+        }
+    };
 
+    cswap(0,1); cswap(3,4);
+    cswap(0,3); cswap(1,4);
+    cswap(2,3);
+    cswap(1,2);
+    cswap(2,3);
 }
-*/
 
+/// Sort 3 elements. This is equivalent to a theoretical `median3`.
+///
+/// A comparsion tree with at most 3 comparisons & 2 swaps.
+pub fn sort3<T: Ord>(a: &mut [T;3])
+{
+    if a[0] <= a[1] {
+        if a[1] <= a[2] {
+        } else {
+            if a[0] <= a[2] {
+                a.swap(1,2);
+            } else {
+                a.swap(0,1);
+                a.swap(0,2);
+            }
+        }
+    } else {
+        if a[0] <= a[2] {
+            a.swap(0,1);
+        } else {
+            // 1 < 0 && 2 < 0
+            if a[1] < a[2] {
+                a.swap(0,1);
+                a.swap(1,2);
+            } else {
+                a.swap(0,2);
+            }
+        }
+    }
+}
+
+/// Find the median of medians (recursively).
+///
+/// This can be used as `partition` for `quickselect` (and itself uses `quickselect` internally).
+///
+/// Does not find the actual median of the array, but finds something in the 30% to 70% bound,
+/// which often can serve as a useful pivot point.
+///
+/// Split the array into 5 element windows, find the find the median & partition each of those
+/// windows, then on the array of medians, find the median again using the same method until we
+/// have less than 5 elements
 pub fn median_of_medians<T: Ord>(a: &mut [T])
     -> usize
 {
@@ -162,7 +213,7 @@ mod test {
                 }
             } else if i > p {
                 if !(x[i] >= x[p]) {
-                    return false;
+                    return true;
                 }
             }
         }
@@ -171,6 +222,16 @@ mod test {
     }
 
     quickcheck! {
+        fn sort5(d: Vec<u8>) -> TestResult {
+            let mut d = d;
+            if d.len() < 5 {
+                return TestResult::discard();
+            }
+            let d = index_fixed!(&mut d;..5);
+            super::sort5(d);
+            TestResult::from_bool(is_sorted(d))
+        }
+
         fn median5(d: Vec<u8>) -> TestResult {
             let mut d = d;
             if d.len() < 5 {
@@ -179,23 +240,31 @@ mod test {
             let d = index_fixed!(&mut d;..5);
             super::median5(d);
 
-            // XXX: this is a sort check, as median5 is currently a sort. Relax to a partitioning
-            // check
+            TestResult::from_bool(is_partitioned(d, 3))
+        }
+
+        fn sort3(d: Vec<u8>) -> TestResult {
+            let mut d = d;
+            if d.len() < 3 {
+                return TestResult::discard();
+            }
+            let d = index_fixed!(&mut d;..3);
+            super::sort3(d);
+            if !is_sorted(d) {
+                println!("{}:{}: {:?}", file!(), line!(), d);
+            }
             TestResult::from_bool(is_sorted(d))
         }
     }
 
-
-    fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize,()> {
+    fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize,String> {
         let op = x[pivot];
         let p = super::hoare_partition(&mut x[..], pivot);
         if !(op == x[p]) {
-            println!("{}:{}: Check failed: {} == {}", file!(), line!(), op, x[p]);
-            return Err(());
+            return Err(format!("{}:{}: Check failed: {} == {}", file!(), line!(), op, x[p]));
         }
         if !is_partitioned(x, p) {
-            println!("{}:{}: not partitioned", file!(), line!());
-            return Err(());
+            return Err(format!("{}:{}: not partitioned", file!(), line!()));
         }
 
         return Ok(p);
