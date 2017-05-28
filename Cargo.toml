@@ -2,9 +2,10 @@
 name = "kth"
 version = "0.1.0"
 authors = ["Cody P Schafer <dev@codyps.com>"]
+keywords = ["nth_element", "partition", "median", "select"]
 
 [dependencies]
-index-fixed = "*"
+index-fixed = "0.0"
 
 [dev-dependencies]
-quickcheck = "*"
+quickcheck = "0.4"
