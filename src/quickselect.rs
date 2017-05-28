@@ -52,7 +52,7 @@ pub fn sort5<T: Ord>(a: &mut [T;5])
 ///
 /// Essentially the same as a sorting network for 5 elements, but with mixing for the outer 2
 /// removed. Saves 2 operations.
-pub fn median5<T: Ord>(a: &mut [T;5])
+pub fn partition5<T: Ord>(a: &mut [T;5])
 {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
@@ -97,6 +97,38 @@ pub fn sort3<T: Ord>(a: &mut [T;3])
     }
 }
 
+/// median-of-medians on groups of 3 elements
+pub fn repeated_step3<T: Ord>(a: &mut [T])
+    -> usize
+{
+    let l = a.len();
+    if l < 9 {
+        return hoare_partition(a, l/2);
+    }
+
+    let mut i = 0;
+    let mut j = 0;
+
+    while i + 2 < a.len() {
+        sort3(index_fixed!(&mut a;..3));
+        a.swap(i+1, j);
+        i += 3;
+        j += 1;
+    }
+
+    let mut i = 0;
+    let mut m = 0;
+    while i + 2 < j {
+        sort3(index_fixed!(&mut a;..3));
+        a.swap(i+1, m);
+        i += 3;
+        m += 1;
+    }
+
+    quickselect(repeated_step3, &mut a[..m], m/2);
+    hoare_partition(a, m/2)
+}
+
 /// Find the median of medians (recursively).
 ///
 /// This can be used as `partition` for `quickselect` (and itself uses `quickselect` internally).
@@ -119,7 +151,7 @@ pub fn median_of_medians<T: Ord>(a: &mut [T])
     let mut j = 0;
 
     while i + 4 < a.len() {
-        median5(index_fixed!(&mut a;..5));
+        partition5(index_fixed!(&mut a;..5));
         a.swap(i+2, j);
         i += 5;
         j += 1;
@@ -232,13 +264,13 @@ mod test {
             TestResult::from_bool(is_sorted(d))
         }
 
-        fn median5(d: Vec<u8>) -> TestResult {
+        fn partition5(d: Vec<u8>) -> TestResult {
             let mut d = d;
             if d.len() < 5 {
                 return TestResult::discard();
             }
             let d = index_fixed!(&mut d;..5);
-            super::median5(d);
+            super::partition5(d);
 
             TestResult::from_bool(is_partitioned(d, 3))
         }
