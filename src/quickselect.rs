@@ -270,6 +270,19 @@ mod test {
         true
     }
 
+    fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize,String> {
+        let op = x[pivot];
+        let p = super::hoare_partition(&mut x[..], pivot);
+        if !(op == x[p]) {
+            return Err(format!("{}:{}: Check failed: {} == {}", file!(), line!(), op, x[p]));
+        }
+        if !is_partitioned(x, p) {
+            return Err(format!("{}:{}: not partitioned", file!(), line!()));
+        }
+
+        return Ok(p);
+    }
+
     quickcheck! {
         fn sort5(d: Vec<u8>) -> TestResult {
             let mut d = d;
@@ -304,33 +317,33 @@ mod test {
             }
             TestResult::from_bool(is_sorted(d))
         }
-    }
 
-    fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize,String> {
-        let op = x[pivot];
-        let p = super::hoare_partition(&mut x[..], pivot);
-        if !(op == x[p]) {
-            return Err(format!("{}:{}: Check failed: {} == {}", file!(), line!(), op, x[p]));
+        fn qs_median_of_medians(d: Vec<u8>, po: usize) -> TestResult {
+            let mut d = d;
+            if d.len() == 0 {
+                return TestResult::discard();
+            }
+            if po >= d.len() {
+                return TestResult::discard();
+            }
+
+            super::quickselect(super::median_of_medians, &mut d[..], po);
+            TestResult::from_bool(is_partitioned(&mut d[..], po))
         }
-        if !is_partitioned(x, p) {
-            return Err(format!("{}:{}: not partitioned", file!(), line!()));
+
+        fn qs_repeated_step3(d: Vec<u8>, po: usize) -> TestResult {
+            let mut d = d;
+            if d.len() == 0 {
+                return TestResult::discard();
+            }
+            if po >= d.len() {
+                return TestResult::discard();
+            }
+
+            super::quickselect(super::repeated_step3, &mut d[..], po);
+            TestResult::from_bool(is_partitioned(&mut d[..], po))
         }
 
-        return Ok(p);
-    }
-
-    #[test]
-    fn hoare_partition() {
-        let mut x = [3, 1, 2, 4, 5];
-        let p = check_hp(&mut x[..], 0).unwrap();
-        assert_eq!(p, 2);
-
-        let mut x = [1,2,3,4,5];
-        let p = check_hp(&mut x[..], 2).unwrap();
-        assert_eq!(p, 2);
-    }
-
-    quickcheck!{
         fn hoare_partition_qc(data: Vec<u8>, pos: usize) -> TestResult {
             let mut d = data;
             if d.len() == 0 {
