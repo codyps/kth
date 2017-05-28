@@ -1,3 +1,12 @@
+//! Efficiently locate the k-th element of an array. The k-th element is the element that would be
+//! at index `k` if the array were sorted.
+//!
+//! Finding the k-th element is generally faster than sorting the array.
+//!
+//! Algorithms here are largely based on [SEA 207].
+//!
+//! [SEA 207](http://erdani.com/research/sea2017.pdf)
+
 /// Find the `k`-th smallest element in `a`, place it at `a[k]` and partition `a` around that
 /// element (all smaller than the element to the left, all larger to the right).
 ///
@@ -67,7 +76,7 @@ pub fn partition5<T: Ord>(a: &mut [T;5])
     cswap(2,3);
 }
 
-/// Sort 3 elements. This is equivalent to a theoretical `median3`.
+/// Sort 3 elements. This is equivalent to a theoretical `partition3`.
 ///
 /// A comparsion tree with at most 3 comparisons & 2 swaps.
 pub fn sort3<T: Ord>(a: &mut [T;3])
@@ -303,7 +312,7 @@ mod test {
     }
 
     #[test]
-    fn hp() {
+    fn hoare_partition() {
         let mut x = [3, 1, 2, 4, 5];
         let p = check_hp(&mut x[..], 0).unwrap();
         assert_eq!(p, 2);
@@ -314,7 +323,7 @@ mod test {
     }
 
     quickcheck!{
-        fn qc_hp(data: Vec<u8>, pos: usize) -> TestResult {
+        fn hoare_partition_qc(data: Vec<u8>, pos: usize) -> TestResult {
             let mut d = data;
             if d.len() == 0 {
                 return TestResult::discard();
