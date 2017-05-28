@@ -17,6 +17,7 @@ pub trait SliceExtKth {
     /// *Panics*
     ///
     ///  - If the slice has length zero.
+    ///  - If the pivot_order is larger than the slice length.
     ///
     /// *Examples*
     ///
