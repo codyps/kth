@@ -84,6 +84,33 @@ pub fn partition5<T: Ord>(a: &mut [T;5])
     cswap(2,3);
 }
 
+// Consider a min/max & value based approach for median5/partition5. This will likely speed up
+// processing when T = u8 or other integers.
+/*
+#[cfg(not(m5v2))]
+pub fn median5<T: Ord>(a: &mut [T;5])
+{
+    partition5(a)
+}
+
+pub fn median3<T: Ord>(a: &mut [T;3])
+    -> T
+{
+    use ::core::cmp::{min,max};
+    max(min(a[0], a[1]), min(a[2], max(a[0], a[1])))
+}
+
+#[cfg(m5v2)]
+pub fn median5<T: Ord>(a: &mut [T;5])
+    -> T
+{
+    use ::core::cmp::{min,max};
+    let f = max(min(a[0], a[1]), min(a[2], a[3]));
+    let g = min(max(a[0], a[1]), min(a[2], a[3]));
+    median3([f,g,a[4]])
+}
+*/
+
 /// Sort 3 elements. This is equivalent to a theoretical `partition3`.
 ///
 /// A comparison tree with at most 3 comparisons & 2 swaps.
