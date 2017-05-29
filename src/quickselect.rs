@@ -44,7 +44,8 @@ pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [
 /// references Knuth's TAOCP volume 3.
 ///
 /// There may exist more efficient non-sorting network sorts that could replace this.
-pub fn sort5<T: Ord>(a: &mut [T;5])
+#[cfg(test)]
+fn sort5<T: Ord>(a: &mut [T;5])
 {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
@@ -142,7 +143,7 @@ pub fn median5<T: Ord>(a: &mut [T;5])
 /// Sort 3 elements. This is equivalent to a theoretical `partition3`.
 ///
 /// A comparison tree with at most 3 comparisons & 2 swaps.
-pub fn sort3<T: Ord>(a: &mut [T;3])
+fn sort3<T: Ord>(a: &mut [T;3])
 {
     if a[0] <= a[1] {
         if a[1] <= a[2] {
