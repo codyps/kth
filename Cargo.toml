@@ -7,7 +7,7 @@ keywords = ["nth_element", "partition", "median", "select", "no_std"]
 repository = "https://github.com/jmesmon/kth"
 documentation = "https://docs.rs/kth"
 include = [ "Cargo.toml", "**/*.rs" ]
-license = "LGPL-v3+ OR GPL-v2+"
+license = "Apache-2.0 OR MIT"
 
 [features]
 nightly = []
