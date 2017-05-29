@@ -98,6 +98,7 @@ fn partition5_2<T: Ord>(a: &mut [T;5])
 /// - <=7 swaps
 ///
 /// [Alexandrescu](https://arxiv.org/pdf/1606.00484v1.pdf)
+#[cfg(test)]
 fn partition5<T: Ord>(x: &mut [T;5])
 {
     // a b c d e
@@ -248,7 +249,8 @@ pub fn repeated_step3<T: Ord>(a: &mut [T])
 /// Split the array into 5 element windows, find the find the median & partition each of those
 /// windows, then on the array of medians, find the median again using the same method until we
 /// have less than 5 elements
-pub fn median_of_medians<T: Ord>(a: &mut [T])
+#[cfg(test)]
+fn median_of_medians<T: Ord>(a: &mut [T])
     -> usize
 {
     let l = a.len();
@@ -505,6 +507,30 @@ mod bench {
         b.iter(|| {
             rng.fill_bytes(&mut d);
             super::partition5_2(&mut d);
+        })
+    }
+
+    const BENCH_LEN: usize = 1024 * 512;
+
+    #[bench]
+    fn median_of_medians_big(b: &mut test::Bencher) {
+        let mut rng = rand::thread_rng();
+        let mut d = vec![0u8; BENCH_LEN];
+        b.iter(|| {
+            rng.fill_bytes(&mut d);
+            let p = rng.gen::<usize>() % d.len();
+            super::quickselect(super::median_of_medians, &mut d[..], p)
+        })
+    }
+
+    #[bench]
+    fn repeated_step3_big(b: &mut test::Bencher) {
+        let mut rng = rand::thread_rng();
+        let mut d = vec![0u8; BENCH_LEN];
+        b.iter(|| {
+            rng.fill_bytes(&mut d);
+            let p = rng.gen::<usize>() % d.len();
+            super::quickselect(super::repeated_step3, &mut d[..], p)
         })
     }
 }

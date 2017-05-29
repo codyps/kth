@@ -8,8 +8,9 @@ extern crate quickcheck;
 #[macro_use]
 extern crate index_fixed;
 
-pub mod quickselect;
+mod quickselect;
 
+/// Add k-th order element operations to slices.
 pub trait SliceExtKth {
     /// Re-order the slice so that the element with the order given by pivot order (ie: the element
     /// at the k-th index when the array is sorted) has all elements smaller than it before it, and
