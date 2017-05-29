@@ -269,6 +269,26 @@ pub fn median_of_medians<T: Ord>(a: &mut [T])
     hoare_partition(a, j/2)
 }
 
+/*
+fn bfprt_improved<T: Ord>(a: &mut [T])
+{
+    let l = a.len();
+    if l < 5 {
+        return hoare_partition(a, l/2);
+    }
+
+    let f = l/5;
+    let mut i = 0;
+    for j in 2*f..3*f {
+        median5(a,i,i+1,j,3*f+i,3*f+i+1);
+        i += 2;
+    }
+
+    quickselect(bfprt_improved, a[2*f..3*f], f/2);
+    expand_partition(a, 2*f, 2*f+f/2,3*f-1);
+}
+*/
+
 /// Partition an array (move all elements greater than a given element to one side, and all
 /// elements larger than the same element to the other).
 ///
