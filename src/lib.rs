@@ -1,3 +1,27 @@
+//! Algorithms to find the K-th order element
+//!
+//! The k-th order element is the element which would be at the k-th index if the array was sorted.
+//!
+//! Finding the median is a special case of finding the k-th order element, to find the median,
+//! select k to be half the array length.
+//!
+//! Partitioning is commonly performed when searching for the K-th order element. An array is
+//! partitioned if all elements before a given element X are less than X, and all elements after a
+//! that same element X are greater than X.
+//!
+//!
+//! # Example
+//! ```
+//! use kth::SliceExtKth;
+//!
+//! let mut x = [6, 6, 8 ,1, 2];
+//! // sorted =  1  2  6  6  8
+//! let m = x.len()/2;
+//! x.partition_by_kth(m);
+//! println!("Median is {}", x[m]);
+//! assert_eq!(x[x.len()/2], 6);
+//! ```
+
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(all(test, feature = "nightly"), feature(test))]
 
