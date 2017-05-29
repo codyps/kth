@@ -6,6 +6,8 @@
 //! Algorithms here are largely based on [SEA 207].
 //!
 //! [SEA 207](http://erdani.com/research/sea2017.pdf)
+//!
+//! Another paper by Andrei Alexandrescu on this topic: https://arxiv.org/pdf/1606.00484v1.pdf
 
 /// Find the `k`-th smallest element in `a`, place it at `a[k]` and partition `a` around that
 /// element (all smaller than the element to the left, all larger to the right).
@@ -69,7 +71,8 @@ pub fn sort5<T: Ord>(a: &mut [T;5])
 ///
 /// Essentially the same as a sorting network for 5 elements, but with mixing for the outer 2
 /// removed. Saves 2 operations.
-pub fn partition5<T: Ord>(a: &mut [T;5])
+#[cfg(test)]
+fn partition5_2<T: Ord>(a: &mut [T;5])
 {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
@@ -82,6 +85,31 @@ pub fn partition5<T: Ord>(a: &mut [T;5])
     cswap(2,3);
     cswap(1,2);
     cswap(2,3);
+}
+
+/// Find the median of 5 elements & partition the other 4 elements around the median.
+///
+/// # Implementation
+///
+/// From [Alexandrescu] "Algorithm 4: MEDIAN5".
+///
+/// - <=6 comparisons
+/// - <=7 swaps
+///
+/// [Alexandrescu](https://arxiv.org/pdf/1606.00484v1.pdf)
+fn partition5<T: Ord>(x: &mut [T;5])
+{
+    // a b c d e
+    // 0 1 2 3 4
+    let a = 0; let b = 1; let c = 2; let d = 3; let e = 4;
+    if x[c] < x[a] { x.swap(a, c); }
+    if x[d] < x[b] { x.swap(b, d); }
+    if x[d] < x[c] { x.swap(c, d); x.swap(a,b); }
+    if x[e] < x[b] { x.swap(b, e); }
+    if x[e] < x[c] {
+        x.swap(c, e);
+        if x[c] < x[a] { x.swap(a, c); }
+    } else if x[c] < x[b] { x.swap(b, c); }
 }
 
 // Consider a min/max & value based approach for median5/partition5. This will likely speed up
@@ -140,6 +168,42 @@ pub fn sort3<T: Ord>(a: &mut [T;3])
         }
     }
 }
+
+/*
+fn ninther<T: Ord>(arr: &mut [T], a, b, c, d, e, f, g, h, i)
+{
+    // XXX: check if the requirements on ordering at the end actually match up here. It isn't
+    // immediately clear:
+    //  - where the medians of medians are supposed to go
+    //  - what ordering requirements exist
+    //
+    // median3(arr, a, b, c)
+    // median3(arr, d, e, f)
+    // median3(arr, g, h, i)
+    // median3(arr, b, e, h)
+}
+
+pub fn median_of_ninthers_basic<T: Ord>(a: &mut [T])
+    -> usize
+{
+    let l = a.len();
+    if l < 9 {
+        return hoare_partition(a, l/2);
+    }
+
+    let f = l / 9;
+
+    for i in (4*f)..(5*f) {
+        let l = i - 4*f;
+        let r = i + 5*f;
+        ninther(a, l, l+1, l+2, l+3, i,
+                r, r+1, r+2, r+3);
+    }
+
+    quickselect(median_of_ninthers_basic, a[4*f..5*f], f/2);
+    expand_parition(a, 4*f, 4*f+f/2, 5*f-1);
+}
+*/
 
 /// median-of-medians on groups of 3 elements
 pub fn repeated_step3<T: Ord>(a: &mut [T])
@@ -332,6 +396,17 @@ mod test {
             TestResult::from_bool(is_partitioned(d, 3))
         }
 
+        fn partition5_2(d: Vec<u8>) -> TestResult {
+            let mut d = d;
+            if d.len() < 5 {
+                return TestResult::discard();
+            }
+            let d = index_fixed!(&mut d;..5);
+            super::partition5_2(d);
+
+            TestResult::from_bool(is_partitioned(d, 3))
+        }
+
         fn sort3(d: Vec<u8>) -> TestResult {
             let mut d = d;
             if d.len() < 3 {
@@ -383,4 +458,32 @@ mod test {
         }
     }
 
+}
+
+#[cfg(all(test, feature = "nightly"))]
+mod bench {
+    extern crate test;
+    extern crate rand;
+
+    use self::rand::Rng;
+
+    #[bench]
+    fn partition5(b: &mut test::Bencher) {
+        let mut rng = rand::thread_rng();
+        let mut d = [0u8; 5];
+        b.iter(|| {
+            rng.fill_bytes(&mut d);
+            super::partition5(&mut d);
+        })
+    }
+
+    #[bench]
+    fn partition5_2(b: &mut test::Bencher) {
+        let mut rng = rand::thread_rng();
+        let mut d = [0u8; 5];
+        b.iter(|| {
+            rng.fill_bytes(&mut d);
+            super::partition5_2(&mut d);
+        })
+    }
 }
