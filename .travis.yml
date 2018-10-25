@@ -1,12 +1,11 @@
 language: rust
-env: TARGET_ARCH=x86_64 TARGET_VENDOR=-unknown TARGET_OS=linux-gnu DO_DOC=true
+cache: cargo
 rust:
   - stable
   - beta
   - nightly
 
-script:
-  - ci/script.sh
-
-after_success:
-  - ci/travis-doc-upload.sh
+branches:
+  - master
+  - staging
+  - trying
