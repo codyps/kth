@@ -36,16 +36,7 @@ mod quickselect;
 
 /// Add k-th order element operations to slices.
 pub trait SliceExtKth {
-    /// Re-order the slice so that the element with the order given by pivot order (ie: the element
-    /// at the k-th index when the array is sorted) has all elements smaller than it before it, and
-    /// all elements larger than it afterwards.
-    ///
-    /// The k-th element can then be read from `self[pivot_order]`, if desired.
-    ///
-    /// # Panics
-    ///
-    ///  - If the slice has length zero.
-    ///  - If the pivot_order is larger than the slice length.
+    /// Convenience helper to call [partition_by_kth](partition_by_kth) on this slice.
     ///
     /// # Examples
     ///
@@ -58,13 +49,38 @@ pub trait SliceExtKth {
     /// let median = x[m_loc];
     /// assert_eq!(median, 3);
     /// ```
-    /// 
     fn partition_by_kth(&mut self, pivot_order: usize);
 }
 
 impl<T: Ord> SliceExtKth for [T] {
     fn partition_by_kth(&mut self, pivot_order: usize)
     {
-        quickselect::quickselect(quickselect::repeated_step3, self, pivot_order)
+        partition_by_kth(self, pivot_order);
     }
+}
+
+/// Re-order the slice so that the element with the order given by pivot order (ie: the element
+/// at the k-th index when the array is sorted) has all elements smaller than it before it, and
+/// all elements larger than it afterwards.
+///
+/// The k-th element can then be read from `self[pivot_order]`, if desired.
+///
+/// # Panics
+///
+///  - If the slice has length zero.
+///  - If the pivot_order is larger than the slice length.
+///
+/// # Examples
+///
+/// ```
+/// //          [2,2,3,4,9];
+/// let mut x = [3,9,2,2,4];
+/// let m_loc = x.len()/2;
+/// kth::partition_by_kth(&mut x, m_loc);
+/// let median = x[m_loc];
+/// assert_eq!(median, 3);
+/// ```
+pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize)
+{
+    quickselect::quickselect(quickselect::repeated_step3, s, pivot_order)
 }
