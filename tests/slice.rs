@@ -31,7 +31,7 @@ quickcheck! {
             }
 
             let mut d = data;
-            let mut d = &mut d[..];
+            let d = &mut d[..];
             d.partition_by_kth(pi);
             TestResult::from_bool(is_partitioned(d, pi))
     }

@@ -1,13 +1,14 @@
 [package]
 name = "kth"
 description = "Find the k-th order element of an array (one of which is the median)"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Cody P Schafer <dev@codyps.com>"]
-keywords = ["nth_element", "partition", "median", "select", "no_std"]
+keywords = ["nth_element", "partition", "median", "select", "no_std", "quickselect", "selection"]
 repository = "https://github.com/jmesmon/kth"
 documentation = "https://docs.rs/kth"
 include = [ "Cargo.toml", "**/*.rs" ]
 license = "Apache-2.0 OR MIT"
+categories = [ "no_std", "algorithms" ]
 
 [features]
 nightly = []
@@ -20,13 +21,17 @@ rustc_version = "0.2"
 
 [dev-dependencies]
 quickcheck = "0.4"
-rand = "0.3"
-
-[profile.test]
-panic = "abort"
+rand = "0.5"
+pdqselect = "0.1"
+order-stat = "0.1"
+criterion = "0.2"
 
 [profile.bench]
 debug = 2
 
 [profile.release]
 debug = 2
+
+[[bench]]
+name = "kth_cmp"
+harness = false

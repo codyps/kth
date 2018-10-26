@@ -1,3 +1,7 @@
+//!
+//! - https://en.wikipedia.org/wiki/Floyd%E2%80%93Rivest_algorithm
+//! - https://dl.acm.org/citation.cfm?doid=360680.360694
+//! - http://infolab.stanford.edu/TR/
 
 pub fn select<T: Ord>(array: &mut [T], k: usize)
 {
