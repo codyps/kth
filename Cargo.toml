@@ -3,11 +3,12 @@ name = "kth"
 description = "Find the k-th order element of an array (one of which is the median)"
 version = "0.1.1"
 authors = ["Cody P Schafer <dev@codyps.com>"]
-keywords = ["nth_element", "partition", "median", "select", "no_std"]
+keywords = ["nth_element", "partition", "median", "select", "no_std", "quickselect", "selection"]
 repository = "https://github.com/jmesmon/kth"
 documentation = "https://docs.rs/kth"
 include = [ "Cargo.toml", "**/*.rs" ]
 license = "Apache-2.0 OR MIT"
+categories = [ "no_std", "algorithms" ]
 
 [features]
 nightly = []
