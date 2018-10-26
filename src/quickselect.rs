@@ -489,6 +489,7 @@ mod bench {
     extern crate rand;
 
     use self::rand::Rng;
+    use self::rand::RngCore;
 
     #[bench]
     fn partition5(b: &mut test::Bencher) {
