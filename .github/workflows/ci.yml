@@ -1,0 +1,35 @@
+name: ci
+on:
+  push:
+    branches: 
+      - "master"
+    tags:
+      - "*"
+  pull_request:
+
+env:
+  RUST_LOG: debug 
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
+    steps:
+      - uses: actions/checkout@v6
+      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - uses: auguwu/clippy-action@1.4.0
+        with:
+            token: ${{secrets.GITHUB_TOKEN}}
+      - run: cargo clippy --all-targets --all-features
+      - run: cargo build --verbose --all-targets
+      - run: cargo test --verbose --all-targets
