@@ -16,8 +16,7 @@
 ///    around `a[p]`.
 ///  - `a` is the input array
 ///  - `k` is the order of the desired element
-pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [T], mut k: usize)
-{
+pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [T], mut k: usize) {
     loop {
         let p = partition(a);
         if p == k {
@@ -25,10 +24,10 @@ pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [
         }
 
         if p > k {
-            a = &mut {a}[0..p];
+            a = &mut { a }[0..p];
         } else {
             k = k - p - 1;
-            a = &mut {a}[(p+1)..];
+            a = &mut { a }[(p + 1)..];
         }
     }
 }
@@ -44,48 +43,47 @@ pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [
 /// references Knuth's TAOCP volume 3.
 ///
 /// There may exist more efficient non-sorting network sorts that could replace this.
-#[cfg(test)]
-fn sort5<T: Ord>(a: &mut [T;5])
-{
+pub fn sort5<T: Ord>(a: &mut [T; 5]) {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
             a.swap(i, j)
         }
     };
 
-
-    cswap(1,2); cswap(3,4);
-    cswap(1,3);
-    cswap(0,2);
-    cswap(2,4);
-    cswap(0,3);
-    cswap(0,1); cswap(2,3);
-    cswap(1,2);
+    cswap(1, 2);
+    cswap(3, 4);
+    cswap(1, 3);
+    cswap(0, 2);
+    cswap(2, 4);
+    cswap(0, 3);
+    cswap(0, 1);
+    cswap(2, 3);
+    cswap(1, 2);
 }
 
 /// Find the median and partition around it in a 5 element array.
 ///
 /// # Implementation
-/// 
+///
 /// Uses a 7 operation (7 comparison, <=7 swap) network. 6 comparison selection algorithms exist,
 /// this could be replaced with a more efficient algorithm.
 ///
 /// Essentially the same as a sorting network for 5 elements, but with mixing for the outer 2
 /// removed. Saves 2 operations.
-#[cfg(test)]
-fn partition5_2<T: Ord>(a: &mut [T;5])
-{
+pub fn partition5_2<T: Ord>(a: &mut [T; 5]) {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
             a.swap(i, j)
         }
     };
 
-    cswap(0,1); cswap(3,4);
-    cswap(0,3); cswap(1,4);
-    cswap(2,3);
-    cswap(1,2);
-    cswap(2,3);
+    cswap(0, 1);
+    cswap(3, 4);
+    cswap(0, 3);
+    cswap(1, 4);
+    cswap(2, 3);
+    cswap(1, 2);
+    cswap(2, 3);
 }
 
 /// Find the median of 5 elements & partition the other 4 elements around the median.
@@ -98,20 +96,35 @@ fn partition5_2<T: Ord>(a: &mut [T;5])
 /// - <=7 swaps
 ///
 /// [Alexandrescu](https://arxiv.org/pdf/1606.00484v1.pdf)
-#[cfg(test)]
-fn partition5<T: Ord>(x: &mut [T;5])
-{
+pub fn partition5<T: Ord>(x: &mut [T; 5]) {
     // a b c d e
     // 0 1 2 3 4
-    let a = 0; let b = 1; let c = 2; let d = 3; let e = 4;
-    if x[c] < x[a] { x.swap(a, c); }
-    if x[d] < x[b] { x.swap(b, d); }
-    if x[d] < x[c] { x.swap(c, d); x.swap(a,b); }
-    if x[e] < x[b] { x.swap(b, e); }
+    let a = 0;
+    let b = 1;
+    let c = 2;
+    let d = 3;
+    let e = 4;
+    if x[c] < x[a] {
+        x.swap(a, c);
+    }
+    if x[d] < x[b] {
+        x.swap(b, d);
+    }
+    if x[d] < x[c] {
+        x.swap(c, d);
+        x.swap(a, b);
+    }
+    if x[e] < x[b] {
+        x.swap(b, e);
+    }
     if x[e] < x[c] {
         x.swap(c, e);
-        if x[c] < x[a] { x.swap(a, c); }
-    } else if x[c] < x[b] { x.swap(b, c); }
+        if x[c] < x[a] {
+            x.swap(a, c);
+        }
+    } else if x[c] < x[b] {
+        x.swap(b, c);
+    }
 }
 
 // Consider a min/max & value based approach for median5/partition5. This will likely speed up
@@ -121,15 +134,49 @@ fn partition5<T: Ord>(x: &mut [T;5])
 pub fn median5<T: Ord>(a: &mut [T;5])
 {
     partition5(a)
-}
 
-pub fn median3<T: Ord>(a: &mut [T;3])
-    -> T
+    }
+    */
+
+
+/// Accept 3 indexes into x, return the index with the median
+pub fn median3_index<T: Ord>(r: &[T], mut a: usize, b: usize, mut c: usize)
+    -> usize
 {
-    use ::core::cmp::{min,max};
-    max(min(a[0], a[1]), min(a[2], max(a[0], a[1])))
+    if r[a] > r[c] {
+        core::mem::swap(&mut a, &mut c);
+    }
+    if r[b] > r[c] {
+        return c;
+    }
+    if r[b] < r[a] { return a; }
+
+    b
 }
 
+// Accept 3 indexes into `r`, update `r` so that the median is at index `b`.
+pub fn median3<T: Ord>(r: &mut [T], a: usize, b: usize, c: usize)
+{
+    if r[b] < r[a] /* b < a */ {
+        if r[b] < r[c] /* b < a, b < c */ {
+            if r[c] < r[a] /* b < c < a */ {
+                r.swap(b, c);
+            } else  /*b < a <= c */ {
+                r.swap(b, a);
+            }
+        }
+    }
+    else if r[c] < r[b] /* a <= b, c < b */ {
+        if r[c] < r[a] /* c < a <= b */ {
+            r.swap(b, a);
+        } else  /* a <= c < b */ {
+            r.swap(b, c);
+        }
+    }
+    debug_assert!(r[a] <= r[b] && r[b] <= r[c] || r[a] >= r[b] && r[b] >= r[c]);
+}
+
+/*
 #[cfg(m5v2)]
 pub fn median5<T: Ord>(a: &mut [T;5])
     -> T
@@ -139,52 +186,98 @@ pub fn median5<T: Ord>(a: &mut [T;5])
     let g = min(max(a[0], a[1]), min(a[2], a[3]));
     median3([f,g,a[4]])
 }
-*/
+    */
 
 /// Sort 3 elements. This is equivalent to a theoretical `partition3`.
 ///
 /// A comparison tree with at most 3 comparisons & 2 swaps.
-fn sort3<T: Ord>(a: &mut [T;3])
-{
+pub fn sort3<T: Ord>(a: &mut [T; 3]) {
     if a[0] <= a[1] {
         if a[1] <= a[2] {
         } else {
             if a[0] <= a[2] {
-                a.swap(1,2);
+                a.swap(1, 2);
             } else {
-                a.swap(0,1);
-                a.swap(0,2);
+                a.swap(0, 1);
+                a.swap(0, 2);
             }
         }
     } else {
         if a[0] <= a[2] {
-            a.swap(0,1);
+            a.swap(0, 1);
         } else {
             // 1 < 0 && 2 < 0
             if a[1] < a[2] {
-                a.swap(0,1);
-                a.swap(1,2);
+                a.swap(0, 1);
+                a.swap(1, 2);
             } else {
-                a.swap(0,2);
+                a.swap(0, 2);
             }
         }
     }
 }
 
-/*
-fn ninther<T: Ord>(arr: &mut [T], a, b, c, d, e, f, g, h, i)
-{
-    // XXX: check if the requirements on ordering at the end actually match up here. It isn't
-    // immediately clear:
-    //  - where the medians of medians are supposed to go
-    //  - what ordering requirements exist
-    //
-    // median3(arr, a, b, c)
-    // median3(arr, d, e, f)
-    // median3(arr, g, h, i)
-    // median3(arr, b, e, h)
+/// Accept 9 indexes into `r`, swaps the ninther (median3-of-median3) of those
+/// indexes into index `e` (aka 5, the middle index).
+pub fn ninther<T: Ord>(r: &mut [T], a: usize, b: usize, c: usize, mut d: usize, e: usize, mut f:usize, g:usize, h:usize, i:usize) {
+    let mut m1 = median3_index(r, a,b,c);
+    let mut m3 = median3_index(r, g,h,i);
+    if r[m1] > r[m3] { core::mem::swap(&mut m1, &mut m3); }
+    
+    if r[d] > r[f] { core::mem::swap(&mut d, &mut f); }
+    // Here we know that r[_2] and r[_8] are the other two medians and that
+    // r[_2] <= r[_8]. We also know that r[_4] <= r[_6]
+    if r[e] < r[d]
+    {
+        // r[_4] is the median of r[_4], r[_5], r[_6]
+    }
+    else if r[e] > r[f]
+    {
+        // r[_6] is the median of r[_4], r[_5], r[_6]
+        d = f;
+    }
+    else
+    {
+        // Here we know r[_5] is the median of r[_4], r[_5], r[_6]
+        if r[e] < r[m1] {
+         r.swap(e, m1);
+         return;
+        }
+        if r[e] > r[m3] {
+            r.swap(e, m3);
+            return;
+        }
+        // This is the only path that returns with no swap
+        return;
+    }
+    // Here we know r[_4] is the median of r[_4], r[_5], r[_6]
+    if r[d] < r[m1] {
+         d = m1;
+    } else if r[d] > r[m3] {
+        d = m3;
+    }
+    r.swap(e, d);
 }
 
+/*
+Data: A
+Result: Pivot p, 0 ≤ p < |A|; A partitioned at p
+1 if |A| < 9 then
+2 return HoarePartition(A, |A|/2);
+3 end
+4 f ← |A|/9;
+5 for i ← 4f through 5f − 1 do
+6 l ← i − 4f ;
+7 r ← i + 5f ;
+8 Ninther(A, l, l + 1, l + 2, l + 3, i,
+r, r + 1, r + 2, r + 3);
+9 end
+10 Quickselect(RepeatedStepBasic,
+A[4f : 5f ], f /2);
+11 return
+ExpandPartition(A, 4f, 4f + f /2, 5f − 1);
+ */
+/*
 pub fn median_of_ninthers_basic<T: Ord>(a: &mut [T])
     -> usize
 {
@@ -202,26 +295,24 @@ pub fn median_of_ninthers_basic<T: Ord>(a: &mut [T])
                 r, r+1, r+2, r+3);
     }
 
-    quickselect(median_of_ninthers_basic, a[4*f..5*f], f/2);
+    quickselect(median_of_ninthers_basic, &mut a[4*f..5*f], f/2);
     expand_parition(a, 4*f, 4*f+f/2, 5*f-1);
 }
-*/
+    */
 
 /// median-of-medians on groups of 3 elements
-pub fn repeated_step3<T: Ord>(a: &mut [T])
-    -> usize
-{
+pub fn repeated_step3<T: Ord>(a: &mut [T]) -> usize {
     let l = a.len();
     if l < 9 {
-        return hoare_partition(a, l/2);
+        return hoare_partition(a, l / 2);
     }
 
     let mut i = 0;
     let mut j = 0;
 
     while i + 2 < a.len() {
-        sort3(index_fixed!(&mut a;..3));
-        a.swap(i+1, j);
+        sort3((&mut a[..3]).try_into().unwrap());
+        a.swap(i + 1, j);
         i += 3;
         j += 1;
     }
@@ -229,14 +320,14 @@ pub fn repeated_step3<T: Ord>(a: &mut [T])
     let mut i = 0;
     let mut m = 0;
     while i + 2 < j {
-        sort3(index_fixed!(&mut a;..3));
-        a.swap(i+1, m);
+        sort3((&mut a[..3]).try_into().unwrap());
+        a.swap(i + 1, m);
         i += 3;
         m += 1;
     }
 
-    quickselect(repeated_step3, &mut a[..m], m/2);
-    hoare_partition(a, m/2)
+    quickselect(repeated_step3, &mut a[..m], m / 2);
+    hoare_partition(a, m / 2)
 }
 
 /// Find the median of medians (recursively).
@@ -249,28 +340,77 @@ pub fn repeated_step3<T: Ord>(a: &mut [T])
 /// Split the array into 5 element windows, find the find the median & partition each of those
 /// windows, then on the array of medians, find the median again using the same method until we
 /// have less than 5 elements
-#[cfg(test)]
-fn median_of_medians<T: Ord>(a: &mut [T])
-    -> usize
-{
+pub fn bfprt_baseline<T: Ord>(a: &mut [T]) -> usize {
     let l = a.len();
     if l < 5 {
-        return hoare_partition(a, l/2);
+        return hoare_partition(a, l / 2);
     }
 
     let mut i = 0;
     let mut j = 0;
 
     while i + 4 < a.len() {
-        partition5(index_fixed!(&mut a;..5));
-        a.swap(i+2, j);
+        partition5((&mut a[..5]).try_into().unwrap());
+        a.swap(i + 2, j);
         i += 5;
         j += 1;
     }
 
-    quickselect(median_of_medians, &mut a[0..j], j/2);
-    hoare_partition(a, j/2)
+    quickselect(bfprt_baseline, &mut a[0..j], j / 2);
+    hoare_partition(a, j / 2)
 }
+
+/*
+Data: A
+Result: Pivot 0 ≤ p < |A|; A partitioned at A[p]
+1 if |A| < 9 then
+2 return HoarePartition(A, |A|/2);
+3 end
+4 i ← 0; j ← 0;
+5 while i + 2 < |A| do
+6 Median3(A, i, i + 1, i + 2);
+7 Swap(A[i + 1], A[j]);
+8 i ← i + 3;
+9 j ← j + 1;
+10 end
+11 i ← 0; m ← 0;
+12 while i + 2 < j do
+13 Median3(A, i, i + 1, i + 2);
+14 Swap(A[i + 1], A[m]);
+15 i ← i + 3;
+16 m ← m + 1;
+17 end
+18 Quickselect(RepeatedStep, A[0 : m], m/2);
+19 return HoarePartition(A, m/2);
+ */
+pub fn repeated_step<T: Ord>(a: &mut [T]) -> usize {
+   if a.len() < 9 {
+    return hoare_partition(a, a.len());
+   }
+
+   let mut i = 0;
+   let mut j = 0;
+
+   while i + 2 < a.len() {
+        sort3((&mut a[i..(i+3)]).try_into().unwrap());
+        a.swap(i + 1, j);
+        i = i + 3;
+        j = j + 1;
+   }
+
+   let mut i = 0;
+   let mut m = 0;
+   while i + 2 < j {
+    sort3((&mut a[i..(i+3)]).try_into().unwrap());
+    a.swap(i + 1, m);
+    i = i + 3;
+    m = m + 1;
+   }
+
+   quickselect(repeated_step, &mut a[0..m], m /2);
+   hoare_partition(a, m/2)
+}
+
 
 /*
 fn bfprt_improved<T: Ord>(a: &mut [T])
@@ -312,9 +452,7 @@ fn bfprt_improved<T: Ord>(a: &mut [T])
 ///  - Scans from right until a smaller than pivot element is found
 ///  - Swap elements if the cursors have not crossed.
 ///  - Repeat
-pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize)
-    -> usize
-{
+pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize) -> usize {
     let p = pivot;
     debug_assert!(arr.len() > 0);
     debug_assert!(p < arr.len());
@@ -344,194 +482,15 @@ pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize)
             break;
         }
 
-        arr.swap(a,b);
+        arr.swap(a, b);
         a += 1;
         b -= 1;
     }
 
     a -= 1;
-    arr.swap(0,a);
+    arr.swap(0, a);
     a
 }
 
 #[cfg(test)]
-mod test {
-    use quickcheck::TestResult;
-
-    fn is_sorted<T: Ord>(a: &[T]) -> bool {
-        for w in a.windows(2) {
-            if w[0] > w[1] {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn is_partitioned<T: Ord>(x: &[T], p: usize) -> bool {
-        for i in 0..x.len() {
-            if i < p {
-                if !(x[i] <= x[p]) {
-                    return false;
-                }
-            } else if i > p {
-                if !(x[i] >= x[p]) {
-                    return true;
-                }
-            }
-        }
-
-        true
-    }
-
-    fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize,String> {
-        let op = x[pivot];
-        let p = super::hoare_partition(&mut x[..], pivot);
-        if !(op == x[p]) {
-            return Err(format!("{}:{}: Check failed: {} == {}", file!(), line!(), op, x[p]));
-        }
-        if !is_partitioned(x, p) {
-            return Err(format!("{}:{}: not partitioned", file!(), line!()));
-        }
-
-        return Ok(p);
-    }
-
-    quickcheck! {
-        fn sort5(d: Vec<u8>) -> TestResult {
-            let mut d = d;
-            if d.len() < 5 {
-                return TestResult::discard();
-            }
-            let d = index_fixed!(&mut d;..5);
-            super::sort5(d);
-            TestResult::from_bool(is_sorted(d))
-        }
-
-        fn partition5(d: Vec<u8>) -> TestResult {
-            let mut d = d;
-            if d.len() < 5 {
-                return TestResult::discard();
-            }
-            let d = index_fixed!(&mut d;..5);
-            super::partition5(d);
-
-            TestResult::from_bool(is_partitioned(d, 3))
-        }
-
-        fn partition5_2(d: Vec<u8>) -> TestResult {
-            let mut d = d;
-            if d.len() < 5 {
-                return TestResult::discard();
-            }
-            let d = index_fixed!(&mut d;..5);
-            super::partition5_2(d);
-
-            TestResult::from_bool(is_partitioned(d, 3))
-        }
-
-        fn sort3(d: Vec<u8>) -> TestResult {
-            let mut d = d;
-            if d.len() < 3 {
-                return TestResult::discard();
-            }
-            let d = index_fixed!(&mut d;..3);
-            super::sort3(d);
-            if !is_sorted(d) {
-                println!("{}:{}: {:?}", file!(), line!(), d);
-            }
-            TestResult::from_bool(is_sorted(d))
-        }
-
-        fn qs_median_of_medians(d: Vec<u8>, po: usize) -> TestResult {
-            let mut d = d;
-            if d.len() == 0 {
-                return TestResult::discard();
-            }
-            if po >= d.len() {
-                return TestResult::discard();
-            }
-
-            super::quickselect(super::median_of_medians, &mut d[..], po);
-            TestResult::from_bool(is_partitioned(&mut d[..], po))
-        }
-
-        fn qs_repeated_step3(d: Vec<u8>, po: usize) -> TestResult {
-            let mut d = d;
-            if d.len() == 0 {
-                return TestResult::discard();
-            }
-            if po >= d.len() {
-                return TestResult::discard();
-            }
-
-            super::quickselect(super::repeated_step3, &mut d[..], po);
-            TestResult::from_bool(is_partitioned(&mut d[..], po))
-        }
-
-        fn hoare_partition_qc(data: Vec<u8>, pos: usize) -> TestResult {
-            let mut d = data;
-            if d.len() == 0 {
-                return TestResult::discard();
-            }
-            if pos >= d.len() {
-                return TestResult::discard();
-            }
-            TestResult::from_bool(check_hp(&mut d[..], pos).is_ok())
-        }
-    }
-
-}
-
-#[cfg(all(test, feature = "nightly"))]
-mod bench {
-    extern crate test;
-    extern crate rand;
-
-    use self::rand::Rng;
-    use self::rand::RngCore;
-
-    #[bench]
-    fn partition5(b: &mut test::Bencher) {
-        let mut rng = rand::thread_rng();
-        let mut d = [0u8; 5];
-        b.iter(|| {
-            rng.fill_bytes(&mut d);
-            super::partition5(&mut d);
-        })
-    }
-
-    #[bench]
-    fn partition5_2(b: &mut test::Bencher) {
-        let mut rng = rand::thread_rng();
-        let mut d = [0u8; 5];
-        b.iter(|| {
-            rng.fill_bytes(&mut d);
-            super::partition5_2(&mut d);
-        })
-    }
-
-    const BENCH_LEN: usize = 1024 * 512;
-
-    #[bench]
-    fn median_of_medians_big(b: &mut test::Bencher) {
-        let mut rng = rand::thread_rng();
-        let mut d = vec![0u8; BENCH_LEN];
-        b.iter(|| {
-            rng.fill_bytes(&mut d);
-            let p = rng.gen::<usize>() % d.len();
-            super::quickselect(super::median_of_medians, &mut d[..], p)
-        })
-    }
-
-    #[bench]
-    fn repeated_step3_big(b: &mut test::Bencher) {
-        let mut rng = rand::thread_rng();
-        let mut d = vec![0u8; BENCH_LEN];
-        b.iter(|| {
-            rng.fill_bytes(&mut d);
-            let p = rng.gen::<usize>() % d.len();
-            super::quickselect(super::repeated_step3, &mut d[..], p)
-        })
-    }
-}
+mod test;

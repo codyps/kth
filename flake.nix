@@ -57,6 +57,7 @@
             cargo-outdated
             cargo-udeps
             cargo-msrv
+            gnuplot
 
             cargo-deny
             eclint

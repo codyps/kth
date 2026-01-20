@@ -23,16 +23,6 @@
 //! ```
 
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(all(test, feature = "nightly"), feature(test))]
-
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck;
-
-#[macro_use]
-extern crate index_fixed;
-
-mod quickselect;
 
 /// Add k-th order element operations to slices.
 pub trait SliceExtKth {
@@ -53,8 +43,7 @@ pub trait SliceExtKth {
 }
 
 impl<T: Ord> SliceExtKth for [T] {
-    fn partition_by_kth(&mut self, pivot_order: usize)
-    {
+    fn partition_by_kth(&mut self, pivot_order: usize) {
         partition_by_kth(self, pivot_order);
     }
 }
@@ -80,7 +69,11 @@ impl<T: Ord> SliceExtKth for [T] {
 /// let median = x[m_loc];
 /// assert_eq!(median, 3);
 /// ```
-pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize)
-{
+pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize) {
     quickselect::quickselect(quickselect::repeated_step3, s, pivot_order)
 }
+
+
+/// Internal module, public for testing
+#[doc(hidden)]
+pub mod quickselect;
