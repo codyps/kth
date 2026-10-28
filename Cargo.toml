@@ -8,7 +8,7 @@ repository = "https://github.com/codyps/kth"
 documentation = "https://docs.rs/kth"
 include = [ "Cargo.toml", "**/*.rs" ]
 license = "Apache-2.0 OR MIT"
-categories = [ "no_std", "algorithms" ]
+categories = [ "no-std", "algorithms" ]
 edition = "2021"
 autobenches = false
 
