@@ -21,7 +21,7 @@ Ordinary merges do not publish, even when `Cargo.toml` has an unpublished versio
 
 Before merging the first release PR, add a GitHub trusted publisher in the
 [`kth` crate settings](https://crates.io/crates/kth/settings): owner `codyps`,
-repository `kth`, workflow filename `release.yml`, and no environment. The workflow
+repository `kth`, workflow filename `release-plz.yml`, and no environment. The workflow
 uses OIDC, so no crates.io token or additional GitHub secret is needed. Repository
 Actions settings must allow GitHub Actions to create pull requests.
 
