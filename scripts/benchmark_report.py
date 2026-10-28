@@ -46,6 +46,21 @@ COLORS = dict(zip(
     ("#2864dc", "#14836c", "#cc493d", "#8255b5", "#9a6324",
      "#e58c16", "#ca64a1", "#617489", "#1a9bb1", "#a39110"),
 ))
+PROFILES = {
+    "full": {"label": "Criterion default sampling", "warmup": "3", "measurement": "5",
+             "samples": "100", "resamples": "100000"},
+    "quick": {"label": "short validation run", "warmup": "0.1", "measurement": "0.3",
+              "samples": "20", "resamples": "1000"},
+    "ci": {"label": "CI sampling", "warmup": "0.5", "measurement": "1",
+           "samples": "50", "resamples": "10000"},
+}
+
+
+def sampling_flags(profile):
+    settings = PROFILES[profile]
+    return ["--noplot", "--confidence-level", "0.95", "--warm-up-time", settings["warmup"],
+            "--measurement-time", settings["measurement"], "--sample-size", settings["samples"],
+            "--nresamples", settings["resamples"]]
 
 
 def expected_keys(sizes=()):
@@ -114,7 +129,7 @@ def capture(command):
     return subprocess.check_output(command, cwd=ROOT, text=True).strip()
 
 
-def provenance(quick, raw, sizes):
+def provenance(profile, raw, sizes):
     locks = {}
     for name, path in (("main", ROOT / "Cargo.lock"),
                        ("experimental", ROOT / "benchmarks/turboselect/Cargo.lock")):
@@ -132,21 +147,22 @@ def provenance(quick, raw, sizes):
                     for line in Path("/proc/cpuinfo").read_text().splitlines()
                     if line.startswith("model name")), cpu)
     return {"generated_at": datetime.now(timezone.utc).isoformat(),
-            "profile": "short validation run" if quick else "Criterion default sampling",
+            "profile": PROFILES[profile]["label"], "sampling": PROFILES[profile],
             "rustc": capture(["rustc", "-Vv"]), "platform": platform.platform(),
             "cpu": cpu, "logical_cpus": os.cpu_count(), "git_commit": commit,
             "working_tree_dirty": dirty, "rustflags": os.environ.get("RUSTFLAGS", ""),
             "raw_directory": str(raw), "dependencies": locks,
-            "scaling_sizes": sizes, "median_scaling_sizes": sorted({n | 1 for n in sizes})}
+            "scaling_sizes": sizes, "median_scaling_sizes": sorted({n | 1 for n in sizes}),
+            "actions_run_url": (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+                                f"{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+                                if os.environ.get("GITHUB_RUN_ID") and os.environ.get("GITHUB_REPOSITORY") else None)}
 
 
-def measure(output, quick, sizes):
+def measure(output, profile, sizes):
     (output / "raw").mkdir(parents=True, exist_ok=True)
     # A fresh directory prevents old or partial runs from silently entering a chart.
     raw = Path(tempfile.mkdtemp(prefix="run-", dir=output / "raw"))
-    flags = ["--noplot", "--confidence-level", "0.95", "--warm-up-time", "0.1" if quick else "3",
-             "--measurement-time", "0.3" if quick else "5", "--sample-size", "20" if quick else "100",
-             "--nresamples", "1000" if quick else "100000"]
+    flags = sampling_flags(profile)
     for name, command in (
         ("main", ["cargo", "bench", "--bench", "criterion", "--", MAIN_FILTER]),
         ("experimental", ["cargo", "bench", "--manifest-path",
@@ -158,7 +174,7 @@ def measure(output, quick, sizes):
         env = dict(os.environ, CRITERION_HOME=str(raw / name),
                    KTH_BENCH_SIZES=",".join(map(str, sizes)))
         run(command + flags, env=env)
-    return {"schema_version": 2, "metadata": provenance(quick, raw, sizes),
+    return {"schema_version": 2, "metadata": provenance(profile, raw, sizes),
             "results": load_results(raw, sizes)}
 
 
@@ -231,6 +247,7 @@ def render(report, output, linear=False):
     from matplotlib.ticker import MaxNLocator
 
     metadata = report["metadata"]
+    metadata["plotting"] = {"python": platform.python_version(), "matplotlib": matplotlib.__version__}
     rows = report["results"]
     short = metadata["profile"] == "short validation run"
     sections = [render_scaling(rows, output, short, linear)]
@@ -291,7 +308,12 @@ def render(report, output, linear=False):
                         '<th>Dataset</th><th>Option</th><th>Mean (µs)</th><th>95% CI (µs)</th>'
                         '<th>Samples</th></tr></thead><tbody>' + "".join(table_rows) + '</tbody></table></details></section>')
     warning = ("Short validation run: use the default command for longer sampling before drawing conclusions."
-               if short else "Measurements are specific to this machine, compiler, and input distribution.")
+               if short else "CI sampling on a shared GitHub runner; measurements can vary between runs."
+               if metadata["profile"] == "CI sampling" else
+               "Measurements are specific to this machine, compiler, and input distribution.")
+    run_link = (f'<p>Generated {html.escape(metadata["generated_at"])} · '
+                f'<a href="{html.escape(metadata["actions_run_url"], quote=True)}">GitHub Actions run</a></p>'
+                if metadata.get("actions_run_url") else "")
     document = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>kth benchmark comparisons</title>
 <style>body{margin:2rem auto;padding:0 1.5rem;max-width:1120px;font:16px/1.5 system-ui;color:#172941;background:#f6f8fb}
@@ -300,6 +322,7 @@ section{margin:3rem 0}table{border-collapse:collapse;width:100%;font-variant-num
 th,td{padding:.5rem;text-align:left;border-bottom:1px solid #d5deeb}pre{white-space:pre-wrap;overflow-wrap:anywhere}
 .notice{padding:1rem;background:#fff1d6;border-radius:8px}</style>
 <h1>kth benchmark comparisons</h1><p class="notice">WARNING_TEXT</p>
+RUN_LINK
 <p>Fixed inputs are identical within each panel; cloning and validation are outside timing.
 Partition charts include full-sort baselines, labeled as such. Median-only charts compare retrieval
 and do not require partitioned output. Experimental results use a separate harness and its own baselines.
@@ -311,6 +334,7 @@ SECTIONS
 <details><summary>Compiler, machine, dependency versions, and sampling profile</summary><pre>METADATA</pre></details>
 </html>"""
     document = document.replace("WARNING_TEXT", html.escape(warning)).replace("SECTIONS", "".join(sections))
+    document = document.replace("RUN_LINK", run_link)
     document = document.replace("METADATA", html.escape(json.dumps(metadata, indent=2)))
     (output / "index.html").write_text(document)
 
@@ -318,7 +342,9 @@ SECTIONS
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "target/benchmark-report")
-    parser.add_argument("--quick", action="store_true", help="Short run to validate the report, with visibly labeled charts")
+    profiles = parser.add_mutually_exclusive_group()
+    profiles.add_argument("--quick", action="store_true", help="Short run to validate the report, with visibly labeled charts")
+    profiles.add_argument("--ci", action="store_true", help="50 samples with 0.5s warmup and 1s measurement per benchmark")
     parser.add_argument("--render-only", action="store_true", help="Regenerate charts from OUTPUT/results.json without benchmarking")
     parser.add_argument("--sizes", type=int, nargs="+", default=DEFAULT_SIZES,
                         help="Positive input lengths for the scaling charts (default: 16 through 65536)")
@@ -332,9 +358,11 @@ def main():
     if args.render_only:
         report = json.loads((output / "results.json").read_text())
     else:
-        report = measure(output, args.quick, sizes)
+        report = measure(output, "quick" if args.quick else "ci" if args.ci else "full", sizes)
+        # Retain completed measurements even if plotting fails.
         (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
     render(report, output, args.linear)
+    (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"Report: {output / 'index.html'}", flush=True)
 
 

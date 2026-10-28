@@ -92,3 +92,19 @@ Run just the scaling benchmarks with `cargo bench --bench scaling`, or
 `cargo bench --manifest-path benchmarks/turboselect/Cargo.toml --bench scaling`.
 Both accept a comma-separated `KTH_BENCH_SIZES` environment variable; the report
 command sets it from `--sizes` so the harnesses measure matching inputs.
+
+CI publishes the latest `master` report at
+[codyps.github.io/kth](https://codyps.github.io/kth/). Each push to `master` runs
+the **Benchmark report** workflow with pinned Rust 1.99.0, Python 3.12, and
+matplotlib 3.10.7. It measures all 312 comparisons, builds the HTML/PNG/SVG reports,
+and deploys them to GitHub Pages. The `--ci` profile uses 50 samples, half a second
+of warmup, and one second of measurement per comparison (roughly eight minutes
+plus setup and analysis). The report links to its Actions run and records its
+source revision and environment. Shared runner results can vary between runs.
+
+Pull requests run the short validation profile and upload a downloadable report
+artifact without publishing it. Artifacts include raw samples and are retained
+for 30 days. To refresh the public site manually, run **Benchmark report** on
+`master` using the `ci`, `full`, or `quick` profile. Other branches only produce an
+artifact. Pages uses GitHub Actions as its source, with the `github-pages`
+environment restricted to deployments from `master`; no extra token is needed.
