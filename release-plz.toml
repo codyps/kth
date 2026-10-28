@@ -1,0 +1,4 @@
+[workspace]
+# Publishing requires merging a release-plz PR, rather than any version change.
+release_always = false
+dependencies_update = false
