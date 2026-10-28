@@ -25,7 +25,7 @@ class InteractiveChartsTest(unittest.TestCase):
         line = next(t for t in figure.data if t.name == "std")
         self.assertEqual(list(line.x), [17, 65])
         self.assertEqual(list(line.y), [2, 8])
-        self.assertEqual(list(line.customdata[0]), [1.8, 2.4, 50, 2])
+        self.assertEqual(list(line.customdata[0]), [1.8, 2.4, 50, 2, 2])
         self.assertEqual(line.customdata[1][3], 4)
         self.assertEqual(figure.layout.xaxis.type, "log")
         self.assertEqual(figure.layout.yaxis.type, "log")
@@ -49,6 +49,45 @@ class InteractiveChartsTest(unittest.TestCase):
             for axis in ("xaxis", "yaxis"):
                 self.assertEqual(changes[f"{axis}.type"], kind)
                 self.assertIs(changes[f"{axis}.autorange"], True)
+
+    def test_multiplier_views_use_baseline_at_each_actual_size(self):
+        figure = charts.scaling_figure(self.rows, "Median", COLORS)
+        buttons = figure.layout.updatemenus[1].buttons
+        self.assertEqual([b.label for b in buttons], ["Time (µs)", "Time / kth", "Time / std"])
+        data, layout = buttons[1].args
+        # Trace order per implementation is lower bound, upper bound, mean.
+        self.assertEqual(list(data["y"][2]), [1, 1])
+        self.assertEqual(list(data["y"][5]), [2, 4])
+        self.assertEqual(list(data["y"][3]), [1.8, 3.6])
+        self.assertEqual(list(data["y"][4]), [2.4, 4.8])
+        self.assertTrue(layout["yaxis.autorange"])
+        self.assertEqual(layout["shapes"][0]["y0"], 1)
+        self.assertIn("same n", layout["yaxis.title.text"])
+        self.assertIn("× kth", data["hovertemplate"][5])
+        std_data = buttons[2].args[0]
+        self.assertEqual(list(std_data["y"][2]), [0.5, 0.25])
+        self.assertEqual(list(std_data["y"][5]), [1, 1])
+        absolute, layout = buttons[0].args
+        self.assertEqual(list(absolute["y"][5]), [2, 8])
+        self.assertEqual(list(absolute["y"][3]), [1.8, 7.2])
+        self.assertEqual(layout["shapes"], [])
+        self.assertIn("µs", absolute["hovertemplate"][5])
+
+    def test_missing_baseline_does_not_interpolate_a_ratio(self):
+        rows = [r for r in self.rows if not (r["algorithm"] == "std" and r["n"] == 65)]
+        figure = charts.scaling_figure(rows, "Median", COLORS)
+        ratios = figure.layout.updatemenus[1].buttons[2].args[0]["y"]
+        self.assertEqual(list(ratios[2]), [0.5, None])
+        self.assertEqual(list(ratios[5]), [1])
+
+    def test_missing_kth_point_leaves_gap_and_keeps_absolute_values(self):
+        rows = [r for r in self.rows if not (r["algorithm"] == "kth" and r["n"] == 65)]
+        figure = charts.scaling_figure(rows, "Median", COLORS)
+        std = next(t for t in figure.data if t.name == "std")
+        self.assertEqual(list(std.y), [2, 8])
+        self.assertIsNone(std.customdata[1][3])
+        ratios = figure.layout.updatemenus[1].buttons[1].args[0]["y"]
+        self.assertEqual(list(ratios[5]), [2, None])
 
     def test_fixed_cases_have_independent_baselines_and_asymmetric_errors(self):
         rows = [measurement("kth", None, 1000), measurement("std", None, 2000),

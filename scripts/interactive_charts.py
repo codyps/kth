@@ -53,11 +53,13 @@ def scale_buttons(figure, xaxes, yaxes=(), linear=True):
 def scaling_figure(rows, title, colors, short=False, linear=False):
     figure = go.Figure()
     baseline = {r["n"]: r["mean_ns"] for r in rows if r["algorithm"] == "kth"}
+    series = []
     for name, color in colors.items():
         points = sorted((r for r in rows if r["algorithm"] == name), key=lambda r: r["n"])
         if not points:
             continue
         x = [r["n"] for r in points]
+        series.extend((points, field) for field in ("lower_ns", "upper_ns", "mean_ns"))
         # Keep both bounds and the mean in one legend group, including when isolated.
         figure.add_trace(go.Scatter(
             x=x, y=[r["lower_ns"] / 1000 for r in points], mode="lines",
@@ -75,7 +77,9 @@ def scaling_figure(rows, title, colors, short=False, linear=False):
             line={"color": color, "width": 3 if name == "kth" else 2,
                   "dash": "dash" if name.startswith("sort") else "solid"},
             customdata=[[r["lower_ns"] / 1000, r["upper_ns"] / 1000,
-                         r["sample_count"], r["mean_ns"] / baseline[r["n"]]] for r in points],
+                         r["sample_count"],
+                         r["mean_ns"] / baseline[r["n"]] if r["n"] in baseline else None,
+                         r["mean_ns"] / 1000] for r in points],
             hovertemplate=("n = %{x:,}<br>Mean: %{y:.4g} µs<br>95% CI: %{customdata[0]:.4g} – "
                            "%{customdata[1]:.4g} µs<br>%{customdata[2]} samples<br>"
                            "%{customdata[3]:.3f}× kth mean time<extra>%{fullData.name}</extra>"),
@@ -87,7 +91,56 @@ def scaling_figure(rows, title, colors, short=False, linear=False):
     figure.update_yaxes(title_text="Mean time per operation (µs) — lower is faster",
                         type="linear" if linear else "log", minorloglabels="none")
     scale_buttons(figure, ("xaxis",), ("yaxis",), linear=linear)
+    multiplier_buttons(figure, rows, series, colors)
     return figure
+
+
+def multiplier_buttons(figure, rows, series, colors):
+    """Normalize every trace against a measured mean at exactly the same n.
+
+    Bands scale the numerator's CI by a fixed baseline mean; they are not ratio CIs.
+    Missing baseline measurements create gaps rather than interpolated comparisons.
+    """
+    absolute_hover = (
+        "n = %{x:,}<br>Mean: %{y:.4g} µs<br>95% CI: %{customdata[0]:.4g} – "
+        "%{customdata[1]:.4g} µs<br>%{customdata[2]} samples<br>"
+        "%{customdata[3]:.3f}× kth mean time<extra>%{fullData.name}</extra>"
+    )
+    buttons = [{
+        "label": "Time (µs)", "method": "update", "args": [
+            {"y": [[r[field] / 1000 for r in points] for points, field in series],
+             "hovertemplate": [absolute_hover if field == "mean_ns" else None for _, field in series]},
+            {"yaxis.title.text": "Mean time per operation (µs) — lower is faster",
+             "yaxis.autorange": True, "shapes": []},
+        ],
+    }]
+    for name in colors:
+        baseline = {r["n"]: r["mean_ns"] for r in rows if r["algorithm"] == name}
+        if not baseline:
+            continue
+        hover = (
+            f"n = %{{x:,}}<br>Relative time: %{{y:.3f}}× {label(name)}<br>"
+            "Mean: %{customdata[4]:.4g} µs<br>95% CI: %{customdata[0]:.4g} – "
+            "%{customdata[1]:.4g} µs<br>%{customdata[2]} samples"
+            "<extra>%{fullData.name}</extra>"
+        )
+        buttons.append({
+            "label": f"Time / {label(name)}", "method": "update", "args": [
+                {"y": [[r[field] / baseline[r["n"]] if r["n"] in baseline else None
+                        for r in points] for points, field in series],
+                 "hovertemplate": [hover if field == "mean_ns" else None for _, field in series]},
+                {"yaxis.title.text": f"Time / {label(name)} at the same n (×) — lower is faster",
+                 "yaxis.autorange": True, "shapes": [{
+                     "type": "line", "xref": "paper", "x0": 0, "x1": 1,
+                     "yref": "y", "y0": 1, "y1": 1,
+                     "line": {"color": "#617489", "width": 1, "dash": "dot"},
+                 }]},
+            ],
+        })
+    figure.update_layout(updatemenus=[*figure.layout.updatemenus, {
+        "type": "dropdown", "x": 0, "xanchor": "left", "y": 1.16,
+        "active": 0, "buttons": buttons,
+    }])
 
 
 def fixed_figure(rows, title, cases, colors, short=False):

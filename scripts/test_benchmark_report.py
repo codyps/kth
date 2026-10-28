@@ -19,12 +19,8 @@ class CriterionResultsTest(unittest.TestCase):
         for index, (suite, case, algorithm, n) in enumerate(sorted(report.expected_keys(self.sizes))):
             if suite.startswith("scaling-"):
                 name = f"{suite}/{case}/{algorithm}/{n}"
-            elif suite == "experimental":
-                name = f"turboselect-comparison/{algorithm}/{case}"
-            elif suite in report.MEDIAN_SUITES:
-                name = f"{suite}/{case}/{algorithm}"
             else:
-                name = f"{algorithm} {case}"
+                name = f"{suite}/{case}/{algorithm}"
             path = self.raw / str(index) / "new"
             path.mkdir(parents=True)
             (path / "benchmark.json").write_text(json.dumps({"full_id": name}))
@@ -35,11 +31,11 @@ class CriterionResultsTest(unittest.TestCase):
             (path / "sample.json").write_text(json.dumps({"times": [4000.0] * 20}))
             self.paths.append(path)
 
-    def test_loads_complete_run_without_merging_harness_baselines(self):
+    def test_loads_complete_unified_run(self):
         rows = report.load_results(self.raw, self.sizes)
-        self.assertEqual(len(rows), 177)
-        baselines = [r for r in rows if r["algorithm"] == "kth" and r["case"] == "rand fixed"]
-        self.assertEqual({r["suite"] for r in baselines}, {"partition", "experimental"})
+        self.assertEqual(len(rows), 168)
+        baselines = [r for r in rows if r["algorithm"] == "kth" and r["case"] == "random-u8"]
+        self.assertEqual({r["suite"] for r in baselines}, {"partition", "scaling-partition"})
         self.assertEqual(rows[0]["mean_ns"], 2000.0)
         self.assertEqual(rows[0]["lower_ns"], 1900.0)
         self.assertEqual(rows[0]["upper_ns"], 2100.0)
@@ -55,14 +51,33 @@ class CriterionResultsTest(unittest.TestCase):
     def test_retrieval_includes_partition_selectors_for_both_types(self):
         rows = report.load_results(self.raw, self.sizes)
         names = {"kth", "std", "order-stat", "pdqselect", "adqselect", "tpt-simd-sort",
-                 "sort", "sort_unstable", "medians"}
+                 "sort", "sort_unstable", "medians", "turboselect"}
         for suite in ("median-only", "scaling-median"):
             for kind in ("u8", "u64"):
                 self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == kind}, names)
-        for suite in ("median-only-experimental", "scaling-median-experimental"):
-            for kind in ("u8", "u64"):
-                self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == kind},
-                                 {"kth", "std", "turboselect", "medians"})
+
+    def test_all_partition_cases_use_the_same_selectors(self):
+        rows = report.load_results(self.raw, self.sizes)
+        for suite in ("partition", "scaling-partition"):
+            for case in report.SCALING_CASES:
+                self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == case},
+                                 set(report.PARTITION_ALGORITHMS))
+
+    def test_report_runs_one_crate_and_one_harness(self):
+        from unittest.mock import patch
+        with patch.object(report, "run") as run, patch.object(report, "provenance", return_value={}), \
+                patch.object(report, "load_results", return_value=[]):
+            result = report.measure(self.raw, "quick", self.sizes)
+        self.assertEqual(run.call_count, 1)
+        command = run.call_args.args[0]
+        self.assertEqual(command[:8], ["cargo", "bench", "--manifest-path", "benchmarks/Cargo.toml",
+                                     "--bench", "comparisons", "--", report.MAIN_FILTER])
+        self.assertEqual(result["schema_version"], 3)
+        self.assertEqual(run.call_args.kwargs["env"]["KTH_BENCH_SIZES"], "16,64")
+
+    def test_old_reports_require_remeasurement_instead_of_merging_harnesses(self):
+        with self.assertRaisesRegex(ValueError, "rerun without --render-only"):
+            report.render({"schema_version": 2}, self.raw)
 
     def test_incomplete_scaling_series_cannot_be_graphed(self):
         path = next(p for p in self.paths if "scaling-partition" in (p / "benchmark.json").read_text())
@@ -97,10 +112,12 @@ class CriterionResultsTest(unittest.TestCase):
             report.load_results(self.raw, self.sizes)
 
     def test_filter_excludes_rng_and_internal_workloads(self):
-        for name in ("kth rand fixed", "std [0]*4195+[1]", "adqselect [1]+[0]*4195",
-                     "median-only/u64/medians"):
+        for name in ("partition/random-u8/kth", "partition/leading-one/std",
+                     "partition/random-u64/adqselect", "median-only/u64/medians",
+                     "scaling-partition/random-u64/turboselect/16", "scaling-median/u8/turboselect/17"):
             self.assertRegex(name, report.MAIN_FILTER)
-        for name in ("std rand", "kth rand", "partition5", "repeated_step3_big"):
+        for name in ("rng-partition/random-u8/std", "rng-partition/random-u8/turboselect",
+                     "partition5", "repeated_step3_big", "std rand"):
             self.assertIsNone(re.search(report.MAIN_FILTER, name))
 
 
