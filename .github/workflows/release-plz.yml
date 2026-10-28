@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 permissions: {}
@@ -10,7 +10,7 @@ permissions: {}
 jobs:
   release-pr:
     name: Prepare release PR
-    if: github.repository == 'codyps/kth' && github.ref == 'refs/heads/master'
+    if: github.repository == 'codyps/kth' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,7 +43,7 @@ jobs:
 
   publish:
     name: Publish merged release
-    if: github.repository == 'codyps/kth' && github.ref == 'refs/heads/master'
+    if: github.repository == 'codyps/kth' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write

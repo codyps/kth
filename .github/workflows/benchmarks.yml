@@ -2,7 +2,7 @@ name: Benchmark report
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -61,14 +61,14 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: target/benchmark-report
 
   deploy:
     name: Publish benchmark report
-    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: measure
     runs-on: ubuntu-24.04
     permissions:

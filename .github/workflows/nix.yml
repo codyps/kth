@@ -3,7 +3,7 @@ name: check with nix
 on:
   push:
     branches: 
-      - "master"
+      - "main"
     tags:
       - "*"
   pull_request:

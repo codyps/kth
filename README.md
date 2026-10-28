@@ -14,7 +14,7 @@ CI checks formatting with rustfmt from Rust 1.99.0. To use the same formatter lo
 install it with `rustup toolchain install 1.99.0 --profile minimal --component rustfmt`
 and run `cargo +1.99.0 fmt --all`.
 
-Releases use [release-plz](https://release-plz.dev/). Each push to `master`
+Releases use [release-plz](https://release-plz.dev/). Each push to `main`
 creates or updates a PR with the next version and changelog. CI runs on that PR;
 review and merge it to publish to crates.io and create a GitHub release and tag.
 Ordinary merges do not publish, even when `Cargo.toml` has an unpublished version.
@@ -30,7 +30,7 @@ Client ID and the Actions secret `RELEASE_PLZ_APP_PRIVATE_KEY` to its PEM privat
 The App token lets normal PR checks run automatically without approval prompts.
 
 To retry a failed release or refresh the release PR, run the **Release** workflow
-manually on `master`. Formatting remains checked only by the pinned CI formatter.
+manually on `main`. Formatting remains checked only by the pinned CI formatter.
 
 Run comparison benchmarks with `cargo bench --bench criterion`. The partition
 benchmarks compare kth, order-stat, pdqselect, Rust's `select_nth_unstable`,
@@ -93,8 +93,8 @@ Run just the scaling benchmarks with `cargo bench --bench scaling`, or
 Both accept a comma-separated `KTH_BENCH_SIZES` environment variable; the report
 command sets it from `--sizes` so the harnesses measure matching inputs.
 
-CI publishes the latest `master` report at
-[codyps.github.io/kth](https://codyps.github.io/kth/). Each push to `master` runs
+CI publishes the latest `main` report at
+[codyps.github.io/kth](https://codyps.github.io/kth/). Each push to `main` runs
 the **Benchmark report** workflow with pinned Rust 1.99.0, Python 3.12, and
 matplotlib 3.10.7. It measures all 312 comparisons, builds the HTML/PNG/SVG reports,
 and deploys them to GitHub Pages. The `--ci` profile uses 50 samples, half a second
@@ -105,6 +105,6 @@ source revision and environment. Shared runner results can vary between runs.
 Pull requests run the short validation profile and upload a downloadable report
 artifact without publishing it. Artifacts include raw samples and are retained
 for 30 days. To refresh the public site manually, run **Benchmark report** on
-`master` using the `ci`, `full`, or `quick` profile. Other branches only produce an
+`main` using the `ci`, `full`, or `quick` profile. Other branches only produce an
 artifact. Pages uses GitHub Actions as its source, with the `github-pages`
-environment restricted to deployments from `master`; no extra token is needed.
+environment restricted to deployments from `main`; no extra token is needed.
