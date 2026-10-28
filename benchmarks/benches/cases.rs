@@ -1,0 +1,146 @@
+use core::hint::black_box;
+use criterion::{measurement::WallTime, BatchSize, BenchmarkGroup, BenchmarkId};
+use rand::prelude::*;
+
+pub fn partition_cases(n: usize) -> [(&'static str, Vec<u8>); 3] {
+    let mut rng = StdRng::seed_from_u64(42);
+    let mut random = vec![0u8; n];
+    rng.fill(&mut random[..]);
+    let mut trailing = vec![0u8; n];
+    trailing[n - 1] = 1;
+    let mut leading = vec![0u8; n];
+    leading[0] = 1;
+    [
+        ("random-u8", random),
+        ("trailing-one", trailing),
+        ("leading-one", leading),
+    ]
+}
+
+pub fn random_u64(n: usize) -> Vec<u64> {
+    let mut rng = StdRng::seed_from_u64(42);
+    (0..n).map(|_| rng.random()).collect()
+}
+
+pub fn validate_partition<T: Ord + Clone + core::fmt::Debug>(
+    input: &[T],
+    select: impl Fn(&mut [T], usize),
+) {
+    let i = input.len() / 2;
+    let mut expected = input.to_vec();
+    expected.sort_unstable();
+    let mut actual = input.to_vec();
+    select(&mut actual, i);
+    assert_eq!(actual[i], expected[i]);
+    assert!(actual[..i].iter().all(|x| x <= &actual[i]));
+    assert!(actual[i + 1..].iter().all(|x| x >= &actual[i]));
+    actual.sort_unstable();
+    assert_eq!(actual, expected);
+}
+
+pub fn bench_partition<T: Ord + Clone + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    algorithm: &str,
+    input: &[T],
+    scaling: bool,
+    select: impl Fn(&mut [T], usize),
+) {
+    validate_partition(input, &select);
+    let id = if scaling {
+        BenchmarkId::new(algorithm, input.len())
+    } else {
+        BenchmarkId::from_parameter(algorithm)
+    };
+    group.bench_function(id, |b| {
+        b.iter_batched_ref(
+            || input.to_vec(),
+            |v| {
+                let i = v.len() / 2;
+                select(v, i);
+                black_box(v);
+            },
+            BatchSize::LargeInput,
+        )
+    });
+}
+
+pub fn bench_median<T: Ord + Clone + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    algorithm: &str,
+    input: &[T],
+    scaling: bool,
+    median: impl Fn(&mut [T]) -> T,
+) {
+    let mut sorted = input.to_vec();
+    sorted.sort_unstable();
+    assert_eq!(median(&mut input.to_vec()), sorted[input.len() / 2]);
+    let id = if scaling {
+        BenchmarkId::new(algorithm, input.len())
+    } else {
+        BenchmarkId::from_parameter(algorithm)
+    };
+    group.bench_function(id, |b| {
+        b.iter_batched_ref(
+            || input.to_vec(),
+            |v| black_box(median(v)),
+            BatchSize::LargeInput,
+        )
+    });
+}
+
+pub fn partitions<T: Ord + Copy + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    input: &[T],
+    scaling: bool,
+) {
+    macro_rules! register {
+        ($name:literal, $values:ident, $index:ident, $select:block) => {
+            bench_partition(group, $name, input, scaling, |$values, $index| {
+                let _ = $index;
+                $select
+            });
+        };
+    }
+    super::selectors::for_each!(register, values, index);
+}
+
+pub fn medians<T: Ord + Copy + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    input: &[T],
+    scaling: bool,
+    specialized: impl Fn(&mut [T]) -> T,
+) {
+    macro_rules! register {
+        ($name:literal, $values:ident, $index:ident, $select:block) => {
+            bench_median(group, $name, input, scaling, |$values| {
+                let $index = $values.len() / 2;
+                $select;
+                $values[$index]
+            });
+        };
+    }
+    super::selectors::for_each!(register, values, index);
+    // medians' histogram-based u8 API retrieves a value without partitioning.
+    bench_median(group, "medians", input, scaling, specialized);
+}
+
+pub fn median_cases(c: &mut criterion::Criterion, suite: &str, n: usize, scaling: bool) {
+    let mut rng = StdRng::seed_from_u64(42);
+    let input: Vec<u8> = (0..n).map(|_| rng.random()).collect();
+    let mut group = c.benchmark_group(format!("{suite}/u8"));
+    medians(&mut group, &input, scaling, |v| {
+        medians::medianu8(v).unwrap().0
+    });
+    group.finish();
+    let mut group = c.benchmark_group(format!("{suite}/u64"));
+    medians(
+        &mut group,
+        &random_u64(n),
+        scaling,
+        |v| match medians::medianu64(v).unwrap() {
+            medians::Medians::Odd(value) => *value,
+            medians::Medians::Even(_) => unreachable!("odd input length"),
+        },
+    );
+    group.finish();
+}

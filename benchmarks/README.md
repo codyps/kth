@@ -1,81 +1,92 @@
 # Benchmarks
 
-Run the commands below from the repository root.
+Cross-library comparisons live in the unpublished crate at
+[`benchmarks/Cargo.toml`](Cargo.toml). The report's fixed and scaling groups and
+the RNG-inclusive groups share one Criterion harness and selector registry. The main crate retains its internal microbenchmarks in
+`benches/`; run those with `cargo bench --bench criterion`.
 
-Run comparison benchmarks with `cargo bench --bench criterion`. The partition
-benchmarks compare kth, order-stat, pdqselect, Rust's `select_nth_unstable`,
-adqselect, and tpt-simd-sort, plus full-sort baselines.
-The fixed-input groups clone data outside timing; the `rand` groups include random
-input generation in their measurements. New selectors validate their partition
-results before timing.
+Run commands below from the repository root:
 
-The separate `median-only` groups compare every partition selector and both full-sort
-baselines with medians on seeded u8 and u64 data. Each selector partitions at
-`len / 2` and returns that element; the sorting baselines return the middle element
-after sorting. They use odd lengths so all implementations return the
-same single median, and exclude input cloning from timing. These measure only
-median retrieval: medians' u8 histogram implementation does not partition input.
-Run only those groups with `cargo bench --bench criterion -- median-only`.
+```sh
+# Fixed, scaling, and RNG-inclusive comparisons.
+cargo bench --manifest-path benchmarks/Cargo.toml --bench comparisons
+# Only scaling comparisons, with custom input lengths.
+KTH_BENCH_SIZES=16,256,4096,65536 cargo bench --manifest-path benchmarks/Cargo.toml --bench comparisons -- scaling-
+# Only fixed median retrieval.
+cargo bench --manifest-path benchmarks/Cargo.toml --bench comparisons -- '^median-only/'
+```
 
-The experimental Git-only turboselect comparison lives in a separate, unpublished
-harness so the published kth crate requires only registry dependencies. It compares
-kth, Rust's selector, and turboselect on the same three fixed datasets, excluding
-input cloning from timing and validating results first. Run it with
-`cargo bench --manifest-path benchmarks/turboselect/Cargo.toml --bench compare`.
-The turboselect revision is pinned in that harness's manifest. Its median-retrieval
-suite compares turboselect, kth, Rust's selector, and medians on the same odd-length
-u8/u64 datasets, with fixed-size and scaling cases. Run it with
-`cargo bench --manifest-path benchmarks/turboselect/Cargo.toml --bench median`.
-Its report charts retain their own baselines rather than mixing timings between harnesses.
+Every partition workload compares kth, order-stat, pdqselect, adqselect,
+tpt-simd-sort, turboselect, and Rust's `select_nth_unstable`, plus stable and
+unstable full-sort baselines. Fixed and scaling cases cover seeded random u8,
+seeded random u64, and zeros with a leading or trailing one. RNG-inclusive u8
+comparisons use the same registry and deliberately include input generation in
+their measurements.
 
-To run both comparison suites and build performance charts, install
+Median-retrieval groups compare all nine partition/sort implementations plus
+medians on seeded u8 and u64 data. Odd lengths ensure every implementation returns
+the same single median. These groups require only the median value: medians' u8
+histogram API does not partition its input, so it cannot serve as a partition
+competitor. Fixed input cloning and validation are outside timing. Partition
+validation checks the selected value, both sides of the partition, and element
+preservation; median validation checks the result against a sorted copy.
+
+Turboselect was previously labeled **experimental** because it came from a pinned
+Git revision and ran in a separate harness with fewer competitors. All comparisons
+now run together under the same sampling and timing protocol. Its Git revision
+remains pinned, and the entire comparison crate has `publish = false`, keeping
+comparison dependencies out of kth's published manifest.
+
+To run the comparisons and build performance charts, install
 [uv](https://docs.astral.sh/uv/) and run:
 
 ```sh
 uv run scripts/benchmark_report.py
 ```
 
-Open `target/benchmark-report/index.html` for charts with mean times, 95% confidence
-intervals, and time relative to kth in each fixed dataset. Charts are interactive:
-hover for exact values, drag to zoom, pan or reset from the toolbar, click legend
-entries to hide implementations, or double-click to isolate one. Confidence bands
-toggle with their lines. Each test case also gets
-a line graph with one line per implementation: x is the number of elements and y
-is mean time. Both axes use log scales by default; shaded bands show 95% confidence
-intervals. Full-sort baselines have dashed lines. Switch log/linear axes with the
-chart buttons; `--linear` changes the initial axes. The toolbar exports the current
-interactive view as SVG.
-Standalone PNG/SVG charts and `results.json` are saved alongside it.
-The JSON records the compiler, machine,
-dependency versions, sampling profile, and Git revision (including whether the
-working tree had changes). Raw Criterion measurements are retained under `raw/`.
-The report keeps median-only and experimental results separate, and excludes
-RNG-inclusive workloads and internal microbenchmarks. Ratios use the baseline
-from the same harness and dataset.
+Open `target/benchmark-report/index.html`. Hover for exact values, drag to zoom,
+pan or reset from the toolbar, click legend entries to hide implementations, or
+double-click to isolate one. Confidence bands toggle with their lines.
+
+Each scaling chart has a dropdown to choose **Time (µs)** or **Time / an
+implementation**. Relative views divide each time by that implementation's mean
+at the **same actual input length**. The dotted 1× line marks the baseline;
+0.5× means half its time and 2× means twice its time. Any measured implementation
+can be the baseline. A missing baseline point creates a gap rather than an
+interpolated comparison. Confidence bands scale each implementation's 95%
+confidence interval by the baseline mean; they do not estimate uncertainty in
+the ratio. Hover still shows absolute time and its interval.
+
+Both axes use log scales by default; chart buttons switch between log and linear
+axes, and `--linear` changes the initial axes. The toolbar exports the current
+interactive view as SVG. Standalone PNG/SVG links retain the original absolute-time
+views. Fixed-case charts also show time relative to kth in their hover details.
+
+The report records compiler, machine, dependency versions, sampling profile, and
+Git revision (including whether the working tree had changes) in `results.json`.
+Raw Criterion measurements remain under `raw/`. RNG-inclusive workloads and
+internal microbenchmarks are excluded from the report. Every displayed comparison
+uses results from the same harness and workload.
 
 The default run uses 100 samples, three seconds of warmup, and five seconds of
 measurement per benchmark, sweeping sizes 16, 64, 256, 1,024, 4,096, 16,384, and
-65,536. This produces 472 measurements and takes roughly 63 minutes plus setup
-and analysis. Use `--sizes 16 256 4096 65536` to choose a shorter sweep, or add
-larger sizes such as 262144 and 1048576. Median-only inputs use the next odd length
-when necessary, and the line charts show that actual length.
-Use `--quick` for a short run to validate the report;
-its charts are marked as such. Use `--render-only` to redraw existing results
-without benchmarking, or `--output PATH` to choose an output directory. Python
-3.11+ is required; uv installs the plotting dependencies automatically. The report
-includes its own `plotly.min.js`, so it also works offline after downloading and
-extracting the full artifact; it does not load charts from a CDN. PNG/SVG links
-retain the original static views for sharing.
+65,536. This produces 448 measurements and takes roughly 60 minutes plus setup
+and analysis. Use `--sizes 16 256 4096 65536` for a shorter sweep, or add larger
+sizes such as 262144 and 1048576. Median inputs use the next odd length when
+necessary; the charts show the actual length.
 
-The benchmark Nix shell includes Python, matplotlib, and Plotly. With a current stable
-Rust toolchain installed (`rustup update stable`), run
+Use `--quick` for a short validation run with visibly marked charts, or `--ci`
+for 50 samples, half a second of warmup, and one second of measurement. Use
+`--render-only` to redraw existing results without benchmarking, and `--output
+PATH` to choose an output directory. Reports made before the unified crate must
+be remeasured; timings from separate harnesses are not merged. Python 3.11+ is
+required; uv installs plotting dependencies automatically. The report includes
+its own `plotly.min.js` and works offline after extracting the full artifact.
+
+The benchmark Nix shell includes Python, matplotlib, and Plotly. With a current
+stable Rust toolchain installed (`rustup update stable`), run
 `nix develop .#benchmarks --command rustup run stable python3 scripts/benchmark_report.py`.
 The comparison dependencies require Rust 1.95 or newer.
 
-Run just the scaling benchmarks with `cargo bench --bench scaling`, or
-`cargo bench --manifest-path benchmarks/turboselect/Cargo.toml --bench scaling`.
-Both accept a comma-separated `KTH_BENCH_SIZES` environment variable; the report
-command sets it from `--sizes` so the harnesses measure matching inputs.
-
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md#benchmark-reports-in-ci) for CI reporting and publishing.
+See [CONTRIBUTING.md](../CONTRIBUTING.md#benchmark-reports-in-ci) for CI reporting
+and publishing.

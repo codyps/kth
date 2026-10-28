@@ -19,6 +19,9 @@ macro_rules! for_each {
         $register!("tpt-simd-sort", $values, $index, {
             tpt_simd_sort::select_nth($values, $index);
         });
+        $register!("turboselect", $values, $index, {
+            turboselect::select_nth_unstable($values, $index);
+        });
         $register!("sort", $values, $index, {
             $values.sort();
         });

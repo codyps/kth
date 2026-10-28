@@ -1,28 +1,24 @@
 [package]
-name = "kth-turboselect-bench"
+name = "kth-benchmarks"
 version = "0.0.0"
 edition = "2021"
 publish = false
 autobenches = false
 
 [dev-dependencies]
-kth = { path = "../.." }
+kth = { path = ".." }
 criterion = "0.8"
 rand = "0.9"
+pdqselect = "0.1"
+order-stat = "0.1"
+adqselect = "0.1.5"
+tpt-simd-sort = "0.1.1"
 medians = "3.0.12"
-# Upstream has no crates.io release; keep this out of kth's published manifest.
+# Upstream has no crates.io release. All comparisons run together in this crate.
 turboselect = { git = "https://github.com/koskinev/turboselect", rev = "d8753c4ffe5b47f28670fea21d56cf3658d51b9b" }
 
 [[bench]]
-name = "compare"
-harness = false
-
-[[bench]]
-name = "scaling"
-harness = false
-
-[[bench]]
-name = "median"
+name = "comparisons"
 harness = false
 
 [profile.bench]

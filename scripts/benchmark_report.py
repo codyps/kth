@@ -20,35 +20,34 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = {
-    "rand fixed": "Seeded random u8 · n = 8,192",
-    "[0]*4195+[1]": "Zeros with a trailing one · n = 4,196",
-    "[1]+[0]*4195": "Zeros with a leading one · n = 4,196",
+    "random-u8": "Seeded random u8 · n = 8,192",
+    "trailing-one": "Zeros with a trailing one · n = 4,196",
+    "leading-one": "Zeros with a leading one · n = 4,196",
+    "random-u64": "Seeded random u64 · n = 8,192",
 }
 PARTITION_ALGORITHMS = (
     "kth", "order-stat", "pdqselect", "adqselect", "tpt-simd-sort",
-    "std", "sort", "sort_unstable",
+    "std", "turboselect", "sort", "sort_unstable",
 )
 MEDIAN_ALGORITHMS = (*PARTITION_ALGORITHMS, "medians")
-EXPERIMENTAL_MEDIAN_ALGORITHMS = ("kth", "std", "turboselect", "medians")
-MEDIAN_SUITES = {"median-only", "median-only-experimental"}
-# Exclude RNG-inclusive workloads and internal microbenchmarks (including std rand).
-MAIN_FILTER = r"( rand fixed$| \[0\]\*4195\+\[1\]$| \[1\]\+\[0\]\*4195$|^median-only/)"
+MEDIAN_SUITES = {"median-only"}
+# Exclude RNG-inclusive workloads and internal microbenchmarks.
+MAIN_FILTER = r"^(partition/|median-only/|scaling-partition/|scaling-median/)"
 SUITES = {
     "partition": ("Partition at the median", "partition"),
     "median-only": ("Retrieve the median", "median-only"),
-    "experimental": ("Experimental turboselect comparison", "experimental"),
-    "median-only-experimental": ("Experimental median retrieval", "median-only-experimental"),
 }
 DEFAULT_SIZES = (16, 64, 256, 1024, 4096, 16384, 65536)
 SCALING_CASES = {
     "random-u8": "Seeded random u8",
     "trailing-one": "Zeros with a trailing one",
     "leading-one": "Zeros with a leading one",
+    "random-u64": "Seeded random u64",
 }
 COLORS = dict(zip(
-    (*PARTITION_ALGORITHMS, "medians", "turboselect"),
+    (*PARTITION_ALGORITHMS, "medians"),
     ("#2864dc", "#14836c", "#cc493d", "#8255b5", "#9a6324",
-     "#e58c16", "#ca64a1", "#617489", "#1a9bb1", "#a39110"),
+     "#e58c16", "#a39110", "#ca64a1", "#617489", "#1a9bb1"),
 ))
 PROFILES = {
     "full": {"label": "Criterion default sampling", "warmup": "3", "measurement": "5",
@@ -71,18 +70,10 @@ def expected_keys(sizes=()):
     keys = {("partition", case, name, None) for case in CASES for name in PARTITION_ALGORITHMS}
     keys |= {("median-only", kind, name, None) for kind in ("u8", "u64")
              for name in MEDIAN_ALGORITHMS}
-    keys |= {("experimental", case, name, None) for case in CASES
-             for name in ("kth", "std", "turboselect")}
-    keys |= {("median-only-experimental", kind, name, None) for kind in ("u8", "u64")
-             for name in EXPERIMENTAL_MEDIAN_ALGORITHMS}
     keys |= {("scaling-partition", case, name, n) for n in sizes for case in SCALING_CASES
              for name in PARTITION_ALGORITHMS}
     keys |= {("scaling-median", kind, name, n | 1) for n in sizes for kind in ("u8", "u64")
              for name in MEDIAN_ALGORITHMS}
-    keys |= {("scaling-experimental", case, name, n) for n in sizes for case in SCALING_CASES
-             for name in ("kth", "std", "turboselect")}
-    keys |= {("scaling-median-experimental", kind, name, n | 1) for n in sizes for kind in ("u8", "u64")
-             for name in EXPERIMENTAL_MEDIAN_ALGORITHMS}
     return keys
 
 
@@ -90,14 +81,8 @@ def benchmark_key(full_id):
     if full_id.startswith("scaling-"):
         suite, case, algorithm, n = full_id.split("/")
         return suite, case, algorithm, int(n)
-    if full_id.startswith(("median-only/", "median-only-experimental/")):
-        suite, case, algorithm = full_id.split("/")
-        return suite, case, algorithm, None
-    if full_id.startswith("turboselect-comparison/"):
-        _, algorithm, case = full_id.split("/", 2)
-        return "experimental", case, algorithm, None
-    algorithm, case = full_id.split(" ", 1)
-    return "partition", case, algorithm, None
+    suite, case, algorithm = full_id.split("/")
+    return suite, case, algorithm, None
 
 
 def load_results(raw, sizes=()):
@@ -139,8 +124,7 @@ def capture(command):
 
 def provenance(profile, raw, sizes):
     locks = {}
-    for name, path in (("main", ROOT / "Cargo.lock"),
-                       ("experimental", ROOT / "benchmarks/turboselect/Cargo.lock")):
+    for name, path in (("benchmarks", ROOT / "benchmarks/Cargo.lock"),):
         data = path.read_bytes()
         locks[name] = {"sha256": hashlib.sha256(data).hexdigest(),
                        "packages": tomllib.loads(data.decode())["package"]}
@@ -171,20 +155,11 @@ def measure(output, profile, sizes):
     # A fresh directory prevents old or partial runs from silently entering a chart.
     raw = Path(tempfile.mkdtemp(prefix="run-", dir=output / "raw"))
     flags = sampling_flags(profile)
-    for name, command in (
-        ("main", ["cargo", "bench", "--bench", "criterion", "--", MAIN_FILTER]),
-        ("experimental", ["cargo", "bench", "--manifest-path",
-                          "benchmarks/turboselect/Cargo.toml", "--bench", "compare", "--"]),
-        ("main-scaling", ["cargo", "bench", "--bench", "scaling", "--"]),
-        ("experimental-scaling", ["cargo", "bench", "--manifest-path",
-                                  "benchmarks/turboselect/Cargo.toml", "--bench", "scaling", "--"]),
-        ("experimental-median", ["cargo", "bench", "--manifest-path",
-                                 "benchmarks/turboselect/Cargo.toml", "--bench", "median", "--"]),
-    ):
-        env = dict(os.environ, CRITERION_HOME=str(raw / name),
-                   KTH_BENCH_SIZES=",".join(map(str, sizes)))
-        run(command + flags, env=env)
-    return {"schema_version": 2, "metadata": provenance(profile, raw, sizes),
+    env = dict(os.environ, CRITERION_HOME=str(raw), KTH_BENCH_SIZES=",".join(map(str, sizes)))
+    command = ["cargo", "bench", "--manifest-path", "benchmarks/Cargo.toml",
+               "--bench", "comparisons", "--", MAIN_FILTER]
+    run(command + flags, env=env)
+    return {"schema_version": 3, "metadata": provenance(profile, raw, sizes),
             "results": load_results(raw, sizes)}
 
 
@@ -197,13 +172,10 @@ def render_scaling(rows, output, short, linear):
     for suite, label, cases in (
         ("scaling-partition", "Partition at the median", SCALING_CASES),
         ("scaling-median", "Median retrieval", {"u8": "Seeded random u8", "u64": "Seeded random u64"}),
-        ("scaling-experimental", "Experimental harness", SCALING_CASES),
-        ("scaling-median-experimental", "Experimental median retrieval",
-         {"u8": "Seeded random u8", "u64": "Seeded random u64"}),
     ):
         for case, title in cases.items():
             selected = [r for r in rows if r["suite"] == suite and r["case"] == case]
-            if not selected:  # Older, fixed-size reports remain renderable.
+            if not selected:
                 continue
             figure, axis = plt.subplots(figsize=(11, 6.4))
             figure.patch.set_facecolor("#f6f8fb")
@@ -250,10 +222,13 @@ def render_scaling(rows, output, short, linear):
                             f'<a href="{filename}.png">Download PNG</a></p></section>')
     return ('<section id="scaling"><h2>Performance by input size</h2><p>One line per implementation. '
             'Median-only inputs use the next odd length when needed; the x axis shows the actual length. '
-            'Experimental charts keep their own harness baselines.</p>' + "".join(sections) + '</section>') if sections else ""
+            'Choose a baseline to compare time multipliers at each input size.</p>' + "".join(sections) + '</section>') if sections else ""
 
 
 def render(report, output, linear=False):
+    if report.get("schema_version") != 3:
+        raise ValueError("This report predates the unified benchmark crate; rerun without --render-only. "
+                         "Measurements from separate harnesses cannot be combined.")
     # Keep parsing/tests usable with Python's standard library alone.
     import matplotlib
     matplotlib.use("Agg")
@@ -271,7 +246,7 @@ def render(report, output, linear=False):
     sections = [render_scaling(rows, output, short, linear)]
     for suite, (title, filename) in SUITES.items():
         if not any(r["suite"] == suite for r in rows):
-            continue  # Older report files do not contain the new experimental retrieval suite.
+            continue
         cases = ("u8", "u64") if suite in MEDIAN_SUITES else tuple(CASES)
         figure, axes = plt.subplots(len(cases), 1, figsize=(11, 3.9 * len(cases)))
         figure.patch.set_facecolor("#f6f8fb")
@@ -350,14 +325,18 @@ RUN_LINK
 <p>Hover for times and confidence intervals. Drag to zoom, use the toolbar to pan or reset,
 and click an implementation in the legend to hide it (double-click to isolate it).
 Confidence bands toggle with their lines. Use the chart buttons to switch log/linear axes.
+Size charts also offer absolute time or a time multiplier relative to any available implementation.
+The baseline is matched at each input size; 1× is the baseline and lower is faster.
 The toolbar exports the current view as SVG; PNG/SVG download links retain the original static views.</p>
 <noscript><p>Enable JavaScript for interactive charts. Static PNG/SVG charts remain available through the download links.</p></noscript>
 <p>Fixed inputs are identical within each panel; cloning and validation are outside timing.
 Partition charts include full-sort baselines, labeled as such. Median-only charts compare retrieval
-and do not require partitioned output. Experimental results use a separate harness and its own baselines.
-Ratios are mean time divided by kth's mean in that panel; below 1× means faster than kth.
-Whiskers describe individual means, not uncertainty in the ratios.</p>
-<nav><a href="#scaling">Performance by input size</a><a href="#partition">Partition</a><a href="#median-only">Median only</a><a href="#experimental">Experimental</a><a href="#median-only-experimental">Experimental medians</a></nav>
+and do not require partitioned output. All libraries run together in one unpublished benchmark crate.
+Fixed-case ratios divide mean time by kth's mean in the same panel. Scaling ratios use the selected
+baseline at each input size; below 1× means faster than that baseline.
+Whiskers describe individual means, not uncertainty in the ratios.
+In multiplier views, confidence bands are divided by the baseline mean and do not include baseline uncertainty.</p>
+<nav><a href="#scaling">Performance by input size</a><a href="#partition">Partition</a><a href="#median-only">Median only</a></nav>
 SECTIONS
 <h2>Run details</h2><p><a href="results.json">Measurements and provenance (JSON)</a></p>
 <details><summary>Compiler, machine, dependency versions, and sampling profile</summary><pre>METADATA</pre></details>
