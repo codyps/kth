@@ -24,6 +24,8 @@
 
 #![cfg_attr(not(test), no_std)]
 
+mod select;
+
 /// Add k-th order element operations to slices.
 pub trait SliceExtKth {
     /// Convenience helper to call [partition_by_kth](partition_by_kth) on this slice.
@@ -54,10 +56,13 @@ impl<T: Ord> SliceExtKth for [T] {
 ///
 /// The k-th element can then be read from `self[pivot_order]`, if desired.
 ///
+/// Uses sampled pivots with a deterministic fallback for O(n) worst-case time,
+/// without allocating.
+///
 /// # Panics
 ///
 ///  - If the slice has length zero.
-///  - If the pivot_order is larger than the slice length.
+///  - If `pivot_order` is greater than or equal to the slice length.
 ///
 /// # Examples
 ///
@@ -70,7 +75,7 @@ impl<T: Ord> SliceExtKth for [T] {
 /// assert_eq!(median, 3);
 /// ```
 pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize) {
-    quickselect::quickselect(quickselect::repeated_step3, s, pivot_order)
+    select::select(s, pivot_order)
 }
 
 /// Internal module, public for testing
