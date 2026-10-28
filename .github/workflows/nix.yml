@@ -24,10 +24,6 @@ jobs:
           fail-mode: true
 
       # Nix-specific logic begins here
-      - name: Check Rust formatting
-        run: |
-          nix develop --command \
-            cargo fmt --check
       - name: editorconfig check
         run: |
           nix develop --command \

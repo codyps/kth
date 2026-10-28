@@ -13,6 +13,17 @@ env:
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
+  fmt:
+    name: Rust formatting
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: "1.99.0"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install pinned rustfmt
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component rustfmt
+      - run: cargo fmt --all -- --check
+
   build:
     name: Build and test
     runs-on: ubuntu-latest
@@ -24,9 +35,12 @@ jobs:
           - nightly
     steps:
       - uses: actions/checkout@v6
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - name: Install Rust toolchain and components
+        run: |
+          rustup update ${{ matrix.toolchain }}
+          rustup default ${{ matrix.toolchain }}
+          rustup component add clippy --toolchain ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
       - uses: auguwu/clippy-action@1.4.0
         with:
             token: ${{secrets.GITHUB_TOKEN}}

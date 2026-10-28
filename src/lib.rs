@@ -73,7 +73,6 @@ pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize) {
     quickselect::quickselect(quickselect::repeated_step3, s, pivot_order)
 }
 
-
 /// Internal module, public for testing
 #[doc(hidden)]
 pub mod quickselect;
