@@ -1,72 +1,96 @@
 use rand::prelude::*;
 
 use core::hint::black_box;
-use criterion::{criterion_group, Criterion};
+use criterion::{criterion_group, BatchSize, Criterion};
 
 macro_rules! bench_fixed {
     ($c:ident, $name:literal, $v:expr) => {
         paste::paste! {
             fn [< bench_kth_ $c >](c: &mut Criterion) {
                 c.bench_function(concat!("kth ", $name), |b| {
-                    let mut v = $v;
-                    b.iter(|| {
-                        let i = v.len() / 2;
-                        kth::partition_by_kth(&mut v[..], i);
-                        black_box(v[i]);
-                    })
+                    let input = $v;
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            let i = v.len() / 2;
+                            kth::partition_by_kth(&mut v[..], i);
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
                 });
             }
 
             fn [< bench_order_stat_ $c >](c: &mut Criterion) {
                 c.bench_function(concat!("order-stat ", $name), |b| {
-                    let mut v = $v;
-                    b.iter(|| {
-                        let i = v.len() / 2;
-                        order_stat::kth(&mut v[..], i);
-                        black_box(v[i]);
-                    })
+                    let input = $v;
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            let i = v.len() / 2;
+                            order_stat::kth(&mut v[..], i);
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
                 });
             }
 
             fn [< bench_pdqselect_ $c >](c: &mut Criterion) {
                 c.bench_function(concat!("pdqselect ", $name), |b| {
-                    let mut v = $v;
-                    b.iter(|| {
-                        let i = v.len() / 2;
-                        pdqselect::select(&mut v[..], i);
-                        black_box(v[i]);
-                    })
+                    let input = $v;
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            let i = v.len() / 2;
+                            pdqselect::select(&mut v[..], i);
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
                 });
             }
 
             fn [< bench_std_ $c >](c: &mut Criterion) {
                 c.bench_function(concat!("std ", $name), |b| {
-                    let mut v = $v;
-                    b.iter(|| {
-                        let i = v.len() / 2;
-                        v.select_nth_unstable(i);
-                        black_box(v[i]);
-                    })
+                    let input = $v;
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            let i = v.len() / 2;
+                            v.select_nth_unstable(i);
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
                 });
             }
 
             fn [< bench_sort_ $c >](c: &mut Criterion) {
                 c.bench_function(concat!("sort ", $name), |b| {
-                    let mut v = $v;
-                    b.iter(|| {
-                        v.sort();
-                        black_box(v[v.len() / 2]);
-                    })
+                    let input = $v;
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            v.sort();
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
                 });
             }
 
             fn [< bench_sort_unstable_ $c >](c: &mut Criterion) {
                 c.bench_function(concat!("sort_unstable ", $name), |b| {
-                    let mut v = $v;
-                    b.iter(|| {
-                        v.sort_unstable();
-                        black_box(v[v.len() / 2]);
-                    })
+                    let input = $v;
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            v.sort_unstable();
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
                 });
             }
 
@@ -84,21 +108,14 @@ macro_rules! bench_fixed {
 }
 
 fn vec_0x4195_1() -> Vec<u8> {
-    let mut v = Vec::with_capacity(4196);
-    for _ in 0..4195 {
-        v.push(0);
-    }
+    let mut v = vec![0; 4195];
     v.push(1);
     v
 }
 
 fn vec_1_0x4195() -> Vec<u8> {
-    let mut v = Vec::with_capacity(4196);
-
-    v.push(1);
-    for _ in 0..4195 {
-        v.push(0);
-    }
+    let mut v = vec![0; 4196];
+    v[0] = 1;
     v
 }
 

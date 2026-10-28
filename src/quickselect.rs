@@ -138,38 +138,42 @@ pub fn median5<T: Ord>(a: &mut [T;5])
     }
     */
 
-
 /// Accept 3 indexes into x, return the index with the median
-pub fn median3_index<T: Ord>(r: &[T], mut a: usize, b: usize, mut c: usize)
-    -> usize
-{
+pub fn median3_index<T: Ord>(r: &[T], mut a: usize, b: usize, mut c: usize) -> usize {
     if r[a] > r[c] {
         core::mem::swap(&mut a, &mut c);
     }
     if r[b] > r[c] {
         return c;
     }
-    if r[b] < r[a] { return a; }
+    if r[b] < r[a] {
+        return a;
+    }
 
     b
 }
 
 // Accept 3 indexes into `r`, update `r` so that the median is at index `b`.
-pub fn median3<T: Ord>(r: &mut [T], a: usize, b: usize, c: usize)
-{
-    if r[b] < r[a] /* b < a */ {
-        if r[b] < r[c] /* b < a, b < c */ {
-            if r[c] < r[a] /* b < c < a */ {
+pub fn median3<T: Ord>(r: &mut [T], a: usize, b: usize, c: usize) {
+    if r[b] < r[a] {
+        // b < a
+        if r[b] < r[c] {
+            // b < a, b < c
+            if r[c] < r[a] {
+                // b < c < a
                 r.swap(b, c);
-            } else  /*b < a <= c */ {
+            } else {
+                // b < a <= c
                 r.swap(b, a);
             }
         }
-    }
-    else if r[c] < r[b] /* a <= b, c < b */ {
-        if r[c] < r[a] /* c < a <= b */ {
+    } else if r[c] < r[b] {
+        // a <= b, c < b
+        if r[c] < r[a] {
+            // c < a <= b
             r.swap(b, a);
-        } else  /* a <= c < b */ {
+        } else {
+            // a <= c < b
             r.swap(b, c);
         }
     }
@@ -219,29 +223,40 @@ pub fn sort3<T: Ord>(a: &mut [T; 3]) {
 
 /// Accept 9 indexes into `r`, swaps the ninther (median3-of-median3) of those
 /// indexes into index `e` (aka 5, the middle index).
-pub fn ninther<T: Ord>(r: &mut [T], a: usize, b: usize, c: usize, mut d: usize, e: usize, mut f:usize, g:usize, h:usize, i:usize) {
-    let mut m1 = median3_index(r, a,b,c);
-    let mut m3 = median3_index(r, g,h,i);
-    if r[m1] > r[m3] { core::mem::swap(&mut m1, &mut m3); }
-    
-    if r[d] > r[f] { core::mem::swap(&mut d, &mut f); }
+#[allow(clippy::too_many_arguments)] // Keep the nine sample positions explicit.
+pub fn ninther<T: Ord>(
+    r: &mut [T],
+    a: usize,
+    b: usize,
+    c: usize,
+    mut d: usize,
+    e: usize,
+    mut f: usize,
+    g: usize,
+    h: usize,
+    i: usize,
+) {
+    let mut m1 = median3_index(r, a, b, c);
+    let mut m3 = median3_index(r, g, h, i);
+    if r[m1] > r[m3] {
+        core::mem::swap(&mut m1, &mut m3);
+    }
+
+    if r[d] > r[f] {
+        core::mem::swap(&mut d, &mut f);
+    }
     // Here we know that r[_2] and r[_8] are the other two medians and that
     // r[_2] <= r[_8]. We also know that r[_4] <= r[_6]
-    if r[e] < r[d]
-    {
+    if r[e] < r[d] {
         // r[_4] is the median of r[_4], r[_5], r[_6]
-    }
-    else if r[e] > r[f]
-    {
+    } else if r[e] > r[f] {
         // r[_6] is the median of r[_4], r[_5], r[_6]
         d = f;
-    }
-    else
-    {
+    } else {
         // Here we know r[_5] is the median of r[_4], r[_5], r[_6]
         if r[e] < r[m1] {
-         r.swap(e, m1);
-         return;
+            r.swap(e, m1);
+            return;
         }
         if r[e] > r[m3] {
             r.swap(e, m3);
@@ -252,7 +267,7 @@ pub fn ninther<T: Ord>(r: &mut [T], a: usize, b: usize, c: usize, mut d: usize, 
     }
     // Here we know r[_4] is the median of r[_4], r[_5], r[_6]
     if r[d] < r[m1] {
-         d = m1;
+        d = m1;
     } else if r[d] > r[m3] {
         d = m3;
     }
@@ -311,7 +326,7 @@ pub fn repeated_step3<T: Ord>(a: &mut [T]) -> usize {
     let mut j = 0;
 
     while i + 2 < a.len() {
-        sort3((&mut a[..3]).try_into().unwrap());
+        sort3((&mut a[i..i + 3]).try_into().unwrap());
         a.swap(i + 1, j);
         i += 3;
         j += 1;
@@ -320,7 +335,7 @@ pub fn repeated_step3<T: Ord>(a: &mut [T]) -> usize {
     let mut i = 0;
     let mut m = 0;
     while i + 2 < j {
-        sort3((&mut a[..3]).try_into().unwrap());
+        sort3((&mut a[i..i + 3]).try_into().unwrap());
         a.swap(i + 1, m);
         i += 3;
         m += 1;
@@ -350,7 +365,7 @@ pub fn bfprt_baseline<T: Ord>(a: &mut [T]) -> usize {
     let mut j = 0;
 
     while i + 4 < a.len() {
-        partition5((&mut a[..5]).try_into().unwrap());
+        partition5((&mut a[i..i + 5]).try_into().unwrap());
         a.swap(i + 2, j);
         i += 5;
         j += 1;
@@ -384,33 +399,32 @@ Result: Pivot 0 ≤ p < |A|; A partitioned at A[p]
 19 return HoarePartition(A, m/2);
  */
 pub fn repeated_step<T: Ord>(a: &mut [T]) -> usize {
-   if a.len() < 9 {
-    return hoare_partition(a, a.len());
-   }
+    if a.len() < 9 {
+        return hoare_partition(a, a.len() / 2);
+    }
 
-   let mut i = 0;
-   let mut j = 0;
+    let mut i = 0;
+    let mut j = 0;
 
-   while i + 2 < a.len() {
-        sort3((&mut a[i..(i+3)]).try_into().unwrap());
+    while i + 2 < a.len() {
+        sort3((&mut a[i..(i + 3)]).try_into().unwrap());
         a.swap(i + 1, j);
-        i = i + 3;
-        j = j + 1;
-   }
+        i += 3;
+        j += 1;
+    }
 
-   let mut i = 0;
-   let mut m = 0;
-   while i + 2 < j {
-    sort3((&mut a[i..(i+3)]).try_into().unwrap());
-    a.swap(i + 1, m);
-    i = i + 3;
-    m = m + 1;
-   }
+    let mut i = 0;
+    let mut m = 0;
+    while i + 2 < j {
+        sort3((&mut a[i..(i + 3)]).try_into().unwrap());
+        a.swap(i + 1, m);
+        i += 3;
+        m += 1;
+    }
 
-   quickselect(repeated_step, &mut a[0..m], m /2);
-   hoare_partition(a, m/2)
+    quickselect(repeated_step, &mut a[0..m], m / 2);
+    hoare_partition(a, m / 2)
 }
-
 
 /*
 fn bfprt_improved<T: Ord>(a: &mut [T])
@@ -454,7 +468,7 @@ fn bfprt_improved<T: Ord>(a: &mut [T])
 ///  - Repeat
 pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize) -> usize {
     let p = pivot;
-    debug_assert!(arr.len() > 0);
+    debug_assert!(!arr.is_empty());
     debug_assert!(p < arr.len());
 
     arr.swap(0, p);

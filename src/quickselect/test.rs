@@ -2,25 +2,20 @@ use quickcheck::quickcheck;
 use quickcheck::TestResult;
 
 fn is_partitioned<T: Ord>(x: &[T], p: usize) -> bool {
-    for i in 0..x.len() {
-        if i < p {
-            if !(x[i] <= x[p]) {
-                return false;
-            }
-        } else if i > p {
-            if !(x[i] >= x[p]) {
-                return true;
-            }
-        }
-    }
+    x[..p].iter().all(|v| v <= &x[p]) && x[p + 1..].iter().all(|v| v >= &x[p])
+}
 
-    true
+#[test]
+fn partition_oracle_checks_both_sides() {
+    assert!(!is_partitioned(&[2, 1, 3], 1));
+    assert!(!is_partitioned(&[0, 2, 1], 1));
+    assert!(is_partitioned(&[1, 2, 2, 3], 2));
 }
 
 fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize, String> {
     let op = x[pivot];
     let p = super::hoare_partition(&mut x[..], pivot);
-    if !(op == x[p]) {
+    if op != x[p] {
         return Err(format!(
             "{}:{}: Check failed: {} == {}",
             file!(),
@@ -33,7 +28,7 @@ fn check_hp(x: &mut [u8], pivot: usize) -> Result<usize, String> {
         return Err(format!("{}:{}: not partitioned", file!(), line!()));
     }
 
-    return Ok(p);
+    Ok(p)
 }
 
 quickcheck! {
@@ -55,7 +50,7 @@ quickcheck! {
         let d = &mut d[..5];
         super::partition5(d.try_into().unwrap());
 
-        TestResult::from_bool(is_partitioned(d, 3))
+        TestResult::from_bool(is_partitioned(d, 2))
     }
 
     fn partition5_2(d: Vec<u8>) -> TestResult {
@@ -66,7 +61,7 @@ quickcheck! {
         let d = &mut d[..5];
         super::partition5_2(d.try_into().unwrap());
 
-        TestResult::from_bool(is_partitioned(d, 3))
+        TestResult::from_bool(is_partitioned(d, 2))
     }
 
     fn sort3(d: Vec<u8>) -> TestResult {
@@ -84,7 +79,7 @@ quickcheck! {
 
     fn qs_median_of_medians(d: Vec<u8>, po: usize) -> TestResult {
         let mut d = d;
-        if d.len() == 0 {
+        if d.is_empty() {
             return TestResult::discard();
         }
         if po >= d.len() {
@@ -92,12 +87,12 @@ quickcheck! {
         }
 
         super::quickselect(super::bfprt_baseline, &mut d[..], po);
-        TestResult::from_bool(is_partitioned(&mut d[..], po))
+        TestResult::from_bool(is_partitioned(&d, po))
     }
 
     fn qs_repeated_step3(d: Vec<u8>, po: usize) -> TestResult {
         let mut d = d;
-        if d.len() == 0 {
+        if d.is_empty() {
             return TestResult::discard();
         }
         if po >= d.len() {
@@ -105,12 +100,12 @@ quickcheck! {
         }
 
         super::quickselect(super::repeated_step3, &mut d[..], po);
-        TestResult::from_bool(is_partitioned(&mut d[..], po))
+        TestResult::from_bool(is_partitioned(&d, po))
     }
 
     fn hoare_partition_qc(data: Vec<u8>, pos: usize) -> TestResult {
         let mut d = data;
-        if d.len() == 0 {
+        if d.is_empty() {
             return TestResult::discard();
         }
         if pos >= d.len() {

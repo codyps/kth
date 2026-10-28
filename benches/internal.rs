@@ -1,4 +1,5 @@
-use criterion::{criterion_group, Criterion};
+use core::hint::black_box;
+use criterion::{criterion_group, BatchSize, Criterion};
 use rand::distr::uniform::UniformSampler;
 use rand::{distr::uniform::UniformUsize, prelude::*};
 
@@ -17,6 +18,7 @@ fn partition5(c: &mut Criterion) {
         b.iter(|| {
             rng.fill_bytes(&mut d);
             kth::quickselect::partition5(&mut d);
+            black_box(d);
         })
     });
 }
@@ -28,6 +30,7 @@ fn partition5_2(c: &mut Criterion) {
         b.iter(|| {
             rng.fill_bytes(&mut d);
             kth::quickselect::partition5_2(&mut d);
+            black_box(d);
         })
     });
 }
@@ -60,11 +63,16 @@ fn repeated_step3_big(c: &mut Criterion) {
 
 fn bench_rand_std(c: &mut Criterion) {
     c.bench_function("std rand", |b| {
-        let mut v = vec_rand();
-        b.iter(|| {
-            let i = v.len() / 2;
-            v.select_nth_unstable(i);
-        })
+        let input = vec_rand();
+        b.iter_batched_ref(
+            || input.clone(),
+            |v| {
+                let i = v.len() / 2;
+                v.select_nth_unstable(i);
+                black_box(v);
+            },
+            BatchSize::SmallInput,
+        )
     });
 }
 
