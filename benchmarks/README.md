@@ -90,3 +90,20 @@ The comparison dependencies require Rust 1.95 or newer.
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md#benchmark-reports-in-ci) for CI reporting
 and publishing.
+
+## Selection optimization benchmarks
+
+Compare kth with its original repeated-step selector and Rust's built-in selector:
+
+```sh
+KTH_BENCH_SIZES=16,64,1024,8192,65536 cargo bench --manifest-path benchmarks/Cargo.toml --bench selection
+```
+
+The suite checks the minimum, first percentile, median, and maximum on sixteen
+seeded random inputs for each length, using both u8 and u64 elements. It also
+checks median selection on sorted, reversed, organ-pipe, sawtooth, equal-valued,
+and single-outlier inputs. Cloning and correctness checks are outside timing.
+For u8 structured inputs, integer values wrap modulo 256; the random u8 and u64
+inputs share the same underlying seeded stream. Random median cases also include
+owned strings and 64-byte elements to exercise larger, non-`Copy` values and
+element-movement costs.
