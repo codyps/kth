@@ -3,6 +3,20 @@ use rand::prelude::*;
 use core::hint::black_box;
 use criterion::{criterion_group, BatchSize, Criterion};
 
+// Check each new selector outside the timed loop, including element preservation.
+fn assert_partition(input: &[u8], select: impl FnOnce(&mut [u8], usize)) {
+    let i = input.len() / 2;
+    let mut expected = input.to_vec();
+    expected.sort_unstable();
+    let mut actual = input.to_vec();
+    select(&mut actual, i);
+    assert_eq!(actual[i], expected[i]);
+    assert!(actual[..i].iter().all(|x| *x <= actual[i]));
+    assert!(actual[i + 1..].iter().all(|x| *x >= actual[i]));
+    actual.sort_unstable();
+    assert_eq!(actual, expected);
+}
+
 macro_rules! bench_fixed {
     ($c:ident, $name:literal, $v:expr) => {
         paste::paste! {
@@ -44,6 +58,42 @@ macro_rules! bench_fixed {
                         |v| {
                             let i = v.len() / 2;
                             pdqselect::select(&mut v[..], i);
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
+                });
+            }
+
+            fn [< bench_adqselect_ $c >](c: &mut Criterion) {
+                c.bench_function(concat!("adqselect ", $name), |b| {
+                    let input = $v;
+                    assert_partition(&input, |v, i| {
+                        adqselect::nth_element(v, i, &mut Ord::cmp);
+                    });
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            let i = v.len() / 2;
+                            adqselect::nth_element(&mut v[..], i, &mut Ord::cmp);
+                            black_box(v);
+                        },
+                        BatchSize::SmallInput,
+                    )
+                });
+            }
+
+            fn [< bench_tpt_simd_sort_ $c >](c: &mut Criterion) {
+                c.bench_function(concat!("tpt-simd-sort ", $name), |b| {
+                    let input = $v;
+                    assert_partition(&input, |v, i| {
+                        tpt_simd_sort::select_nth(v, i);
+                    });
+                    b.iter_batched_ref(
+                        || input.clone(),
+                        |v| {
+                            let i = v.len() / 2;
+                            tpt_simd_sort::select_nth(&mut v[..], i);
                             black_box(v);
                         },
                         BatchSize::SmallInput,
@@ -99,6 +149,8 @@ macro_rules! bench_fixed {
                 [< bench_kth_ $c >],
                 [< bench_order_stat_ $c >],
                 [< bench_pdqselect_ $c >],
+                [< bench_adqselect_ $c >],
+                [< bench_tpt_simd_sort_ $c >],
                 [< bench_std_ $c >],
                 [< bench_sort_ $c >],
                 [< bench_sort_unstable_ $c >],
@@ -171,6 +223,38 @@ fn bench_rand_pdqselect(c: &mut Criterion) {
     });
 }
 
+fn bench_rand_adqselect(c: &mut Criterion) {
+    c.bench_function("adqselect rand", |b| {
+        assert_partition(&vec_rand_fixed(), |v, i| {
+            adqselect::nth_element(&mut v[..], i, &mut Ord::cmp);
+        });
+        let mut rng = rand::rng();
+        let mut v = vec![0u8; RAND_LEN];
+        b.iter(|| {
+            rng.fill_bytes(&mut v);
+            let i = v.len() / 2;
+            adqselect::nth_element(&mut v[..], i, &mut Ord::cmp);
+            black_box(v[i]);
+        })
+    });
+}
+
+fn bench_rand_tpt_simd_sort(c: &mut Criterion) {
+    c.bench_function("tpt-simd-sort rand", |b| {
+        assert_partition(&vec_rand_fixed(), |v, i| {
+            tpt_simd_sort::select_nth(&mut v[..], i);
+        });
+        let mut rng = rand::rng();
+        let mut v = vec![0u8; RAND_LEN];
+        b.iter(|| {
+            rng.fill_bytes(&mut v);
+            let i = v.len() / 2;
+            tpt_simd_sort::select_nth(&mut v[..], i);
+            black_box(v[i]);
+        })
+    });
+}
+
 fn bench_rand_std(c: &mut Criterion) {
     c.bench_function("std rand", |b| {
         let mut rng = rand::rng();
@@ -212,6 +296,8 @@ criterion_group!(
     bench_rand_kth,
     bench_rand_order_stat,
     bench_rand_pdqselect,
+    bench_rand_adqselect,
+    bench_rand_tpt_simd_sort,
     bench_rand_std,
     bench_rand_sort,
     bench_rand_sort_unstable

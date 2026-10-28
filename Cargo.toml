@@ -19,6 +19,9 @@ pdqselect = "0.1"
 order-stat = "0.1"
 criterion = "0.8"
 paste = "1.0.15"
+adqselect = "0.1.5"
+tpt-simd-sort = "0.1.1"
+medians = "3.0.12"
 
 [profile.bench]
 debug = 2
@@ -28,4 +31,8 @@ debug = 2
 
 [[bench]]
 name = "criterion"
+harness = false
+
+[[bench]]
+name = "scaling"
 harness = false
