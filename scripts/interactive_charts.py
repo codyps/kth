@@ -12,7 +12,7 @@ def write_assets(output):
 
 def chart_html(figure, name):
     return figure.to_html(
-        full_html=False, include_plotlyjs=False, div_id=name,
+        full_html=False, include_plotlyjs=False, div_id=f"chart-{name}",
         config={"responsive": True, "scrollZoom": True, "displaylogo": False,
                 "toImageButtonOptions": {"format": "svg", "filename": name}},
     )

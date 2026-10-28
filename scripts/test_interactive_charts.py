@@ -65,7 +65,7 @@ class InteractiveChartsTest(unittest.TestCase):
     def test_html_uses_the_local_runtime_and_preserves_interaction_configuration(self):
         figure = charts.scaling_figure(self.rows, "Median", COLORS)
         snippet = charts.chart_html(figure, "scaling-test")
-        self.assertIn('id="scaling-test"', snippet)
+        self.assertIn('id="chart-scaling-test"', snippet)
         self.assertIn("Plotly.newPlot", snippet)
         self.assertIn('"scrollZoom": true', snippet)
         self.assertNotIn('<script src=', snippet)
