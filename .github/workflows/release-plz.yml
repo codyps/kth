@@ -13,9 +13,7 @@ jobs:
     if: github.repository == 'codyps/kth' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-      actions: write
+      contents: read
     concurrency:
       group: release-pr-${{ github.ref }}
       cancel-in-progress: false
@@ -26,25 +24,22 @@ jobs:
           persist-credentials: false
       - name: Install Rust
         run: rustup update stable && rustup default stable
+      - name: Create release PR token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_PLZ_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_PLZ_APP_PRIVATE_KEY }}
+          repositories: kth
+          permission-contents: write
+          permission-pull-requests: write
       - name: Prepare version and changelog
-        id: release
         uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
         with:
           command: release-pr
           version: "0.4.2"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Dispatch explicitly because bot-created PRs do not run CI automatically.
-      - name: Run CI on the release PR
-        if: steps.release.outputs.prs_created == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_PR: ${{ steps.release.outputs.pr }}
-        run: |
-          branch=$(jq -er '.head_branch' <<< "$RELEASE_PR")
-          gh workflow run ci.yml --ref "$branch"
-          gh workflow run nix.yml --ref "$branch"
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
   publish:
     name: Publish merged release
