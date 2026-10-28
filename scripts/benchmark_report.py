@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["matplotlib>=3.8,<4"]
+# dependencies = ["matplotlib>=3.8,<4", "plotly>=6.5,<7"]
 # ///
 """Run Criterion comparisons and plot the measured means and confidence intervals."""
 
@@ -181,6 +181,7 @@ def measure(output, profile, sizes):
 def render_scaling(rows, output, short, linear):
     import matplotlib.pyplot as plt
     from matplotlib.ticker import FuncFormatter
+    import interactive_charts
 
     sections = []
     for suite, label, cases in (
@@ -230,8 +231,9 @@ def render_scaling(rows, output, short, linear):
             for extension in ("svg", "png"):
                 figure.savefig(output / f"{filename}.{extension}", dpi=150, facecolor=figure.get_facecolor())
             plt.close(figure)
-            svg = (output / f"{filename}.svg").read_text()
-            sections.append(f'<section><h3>{html.escape(label + " — " + title)}</h3>' + svg[svg.index("<svg"):] +
+            interactive = interactive_charts.scaling_figure(selected, title, COLORS, short, linear)
+            sections.append(f'<section><h3>{html.escape(label + " — " + title)}</h3>' +
+                            interactive_charts.chart_html(interactive, filename) +
                             f'<p><a href="{filename}.svg">Download SVG</a> · '
                             f'<a href="{filename}.png">Download PNG</a></p></section>')
     return ('<section id="scaling"><h2>Performance by input size</h2><p>One line per implementation. '
@@ -245,9 +247,13 @@ def render(report, output, linear=False):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
+    import interactive_charts
+    import plotly
 
     metadata = report["metadata"]
-    metadata["plotting"] = {"python": platform.python_version(), "matplotlib": matplotlib.__version__}
+    metadata["plotting"] = {"python": platform.python_version(), "matplotlib": matplotlib.__version__,
+                            "plotly": plotly.__version__}
+    interactive_charts.write_assets(output)
     rows = report["results"]
     short = metadata["profile"] == "short validation run"
     sections = [render_scaling(rows, output, short, linear)]
@@ -292,8 +298,10 @@ def render(report, output, linear=False):
         for extension in ("svg", "png"):
             figure.savefig(output / f"{filename}.{extension}", dpi=150, facecolor=figure.get_facecolor())
         plt.close(figure)
-        svg = (output / f"{filename}.svg").read_text()
-        svg = svg[svg.index("<svg"):]
+        case_titles = ({kind: f"Seeded random {kind} · n = 8,193" for kind in cases}
+                       if suite == "median-only" else CASES)
+        interactive = interactive_charts.fixed_figure([r for r in rows if r["suite"] == suite],
+                                                      title, case_titles, COLORS, short)
         table_rows = []
         for row in rows:
             if row["suite"] != suite:
@@ -301,7 +309,8 @@ def render(report, output, linear=False):
             table_rows.append("<tr>" + "".join(f"<td>{html.escape(str(value))}</td>" for value in (
                 row["case"], row["algorithm"], f"{row['mean_ns'] / 1000:.6g}",
                 f"{row['lower_ns'] / 1000:.6g} – {row['upper_ns'] / 1000:.6g}", row["sample_count"])) + "</tr>")
-        sections.append(f'<section id="{suite}"><h2>{title}</h2>{svg}'
+        sections.append(f'<section id="{suite}"><h2>{title}</h2>' +
+                        interactive_charts.chart_html(interactive, filename) +
                         f'<p><a href="{filename}.svg">Download SVG</a> · '
                         f'<a href="{filename}.png">Download PNG</a></p>'
                         '<details><summary>Timing data</summary><table><thead><tr>'
@@ -316,13 +325,19 @@ def render(report, output, linear=False):
                 if metadata.get("actions_run_url") else "")
     document = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>kth benchmark comparisons</title>
+<script src="plotly.min.js"></script>
 <style>body{margin:2rem auto;padding:0 1.5rem;max-width:1120px;font:16px/1.5 system-ui;color:#172941;background:#f6f8fb}
-svg{width:100%;height:auto}nav a{display:inline-block;margin:0 1rem .5rem 0}a{color:#1854c1}
+nav a{display:inline-block;margin:0 1rem .5rem 0}a{color:#1854c1}
 section{margin:3rem 0}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th,td{padding:.5rem;text-align:left;border-bottom:1px solid #d5deeb}pre{white-space:pre-wrap;overflow-wrap:anywhere}
 .notice{padding:1rem;background:#fff1d6;border-radius:8px}</style>
 <h1>kth benchmark comparisons</h1><p class="notice">WARNING_TEXT</p>
 RUN_LINK
+<p>Hover for times and confidence intervals. Drag to zoom, use the toolbar to pan or reset,
+and click an implementation in the legend to hide it (double-click to isolate it).
+Confidence bands toggle with their lines. Use the chart buttons to switch log/linear axes.
+The toolbar exports the current view as SVG; PNG/SVG download links retain the original static views.</p>
+<noscript><p>Enable JavaScript for interactive charts. Static PNG/SVG charts remain available through the download links.</p></noscript>
 <p>Fixed inputs are identical within each panel; cloning and validation are outside timing.
 Partition charts include full-sort baselines, labeled as such. Median-only charts compare retrieval
 and do not require partitioned output. Experimental results use a separate harness and its own baselines.

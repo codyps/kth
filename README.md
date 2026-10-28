@@ -60,10 +60,15 @@ uv run scripts/benchmark_report.py
 ```
 
 Open `target/benchmark-report/index.html` for charts with mean times, 95% confidence
-intervals, and time relative to kth in each fixed dataset. Each test case also gets
+intervals, and time relative to kth in each fixed dataset. Charts are interactive:
+hover for exact values, drag to zoom, pan or reset from the toolbar, click legend
+entries to hide implementations, or double-click to isolate one. Confidence bands
+toggle with their lines. Each test case also gets
 a line graph with one line per implementation: x is the number of elements and y
 is mean time. Both axes use log scales by default; shaded bands show 95% confidence
-intervals. Full-sort baselines have dashed lines. Use `--linear` for linear axes.
+intervals. Full-sort baselines have dashed lines. Switch log/linear axes with the
+chart buttons; `--linear` changes the initial axes. The toolbar exports the current
+interactive view as SVG.
 Standalone PNG/SVG charts and `results.json` are saved alongside it.
 The JSON records the compiler, machine,
 dependency versions, sampling profile, and Git revision (including whether the
@@ -81,9 +86,12 @@ when necessary, and the line charts show that actual length.
 Use `--quick` for a short run to validate the report;
 its charts are marked as such. Use `--render-only` to redraw existing results
 without benchmarking, or `--output PATH` to choose an output directory. Python
-3.11+ is required; uv installs the plotting dependency automatically.
+3.11+ is required; uv installs the plotting dependencies automatically. The report
+includes its own `plotly.min.js`, so it also works offline after downloading and
+extracting the full artifact; it does not load charts from a CDN. PNG/SVG links
+retain the original static views for sharing.
 
-The benchmark Nix shell includes Python and matplotlib. With a current stable
+The benchmark Nix shell includes Python, matplotlib, and Plotly. With a current stable
 Rust toolchain installed (`rustup update stable`), run
 `nix develop .#benchmarks --command rustup run stable python3 scripts/benchmark_report.py`.
 The comparison dependencies require Rust 1.95 or newer.
@@ -96,7 +104,8 @@ command sets it from `--sizes` so the harnesses measure matching inputs.
 CI publishes the latest `main` report at
 [codyps.github.io/kth](https://codyps.github.io/kth/). Each push to `main` runs
 the **Benchmark report** workflow with pinned Rust 1.99.0, Python 3.12, and
-matplotlib 3.10.7. It measures all 312 comparisons, builds the HTML/PNG/SVG reports,
+matplotlib 3.10.7 and Plotly 6.5.0. It measures all 312 comparisons, builds the interactive
+HTML report and PNG/SVG exports,
 and deploys them to GitHub Pages. The `--ci` profile uses 50 samples, half a second
 of warmup, and one second of measurement per comparison (roughly eight minutes
 plus setup and analysis). The report links to its Actions run and records its
