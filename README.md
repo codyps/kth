@@ -39,8 +39,10 @@ The fixed-input groups clone data outside timing; the `rand` groups include rand
 input generation in their measurements. New selectors validate their partition
 results before timing.
 
-The separate `median-only` groups compare kth, Rust's selector, and medians on
-seeded u8 and u64 data. They use odd lengths so all implementations return the
+The separate `median-only` groups compare every partition selector and both full-sort
+baselines with medians on seeded u8 and u64 data. Each selector partitions at
+`len / 2` and returns that element; the sorting baselines return the middle element
+after sorting. They use odd lengths so all implementations return the
 same single median, and exclude input cloning from timing. These measure only
 median retrieval: medians' u8 histogram implementation does not partition input.
 Run only those groups with `cargo bench --bench criterion -- median-only`.
@@ -50,7 +52,11 @@ harness so the published kth crate requires only registry dependencies. It compa
 kth, Rust's selector, and turboselect on the same three fixed datasets, excluding
 input cloning from timing and validating results first. Run it with
 `cargo bench --manifest-path benchmarks/turboselect/Cargo.toml --bench compare`.
-The turboselect revision is pinned in that harness's manifest.
+The turboselect revision is pinned in that harness's manifest. Its median-retrieval
+suite compares turboselect, kth, Rust's selector, and medians on the same odd-length
+u8/u64 datasets, with fixed-size and scaling cases. Run it with
+`cargo bench --manifest-path benchmarks/turboselect/Cargo.toml --bench median`.
+Its report charts retain their own baselines rather than mixing timings between harnesses.
 
 To run both comparison suites and build performance charts, install
 [uv](https://docs.astral.sh/uv/) and run:
@@ -79,7 +85,7 @@ from the same harness and dataset.
 
 The default run uses 100 samples, three seconds of warmup, and five seconds of
 measurement per benchmark, sweeping sizes 16, 64, 256, 1,024, 4,096, 16,384, and
-65,536. This produces 312 measurements and takes roughly 42 minutes plus setup
+65,536. This produces 472 measurements and takes roughly 63 minutes plus setup
 and analysis. Use `--sizes 16 256 4096 65536` to choose a shorter sweep, or add
 larger sizes such as 262144 and 1048576. Median-only inputs use the next odd length
 when necessary, and the line charts show that actual length.
@@ -104,10 +110,10 @@ command sets it from `--sizes` so the harnesses measure matching inputs.
 CI publishes the latest `main` report at
 [codyps.github.io/kth](https://codyps.github.io/kth/). Each push to `main` runs
 the **Benchmark report** workflow with pinned Rust 1.99.0, Python 3.12, and
-matplotlib 3.10.7 and Plotly 6.5.0. It measures all 312 comparisons, builds the interactive
+matplotlib 3.10.7 and Plotly 6.5.0. It measures all 472 comparisons, builds the interactive
 HTML report and PNG/SVG exports,
 and deploys them to GitHub Pages. The `--ci` profile uses 50 samples, half a second
-of warmup, and one second of measurement per comparison (roughly eight minutes
+of warmup, and one second of measurement per comparison (roughly twelve minutes
 plus setup and analysis). The report links to its Actions run and records its
 source revision and environment. Shared runner results can vary between runs.
 

@@ -9,6 +9,7 @@ autobenches = false
 kth = { path = "../.." }
 criterion = "0.8"
 rand = "0.9"
+medians = "3.0.12"
 # Upstream has no crates.io release; keep this out of kth's published manifest.
 turboselect = { git = "https://github.com/koskinev/turboselect", rev = "d8753c4ffe5b47f28670fea21d56cf3658d51b9b" }
 
@@ -18,6 +19,10 @@ harness = false
 
 [[bench]]
 name = "scaling"
+harness = false
+
+[[bench]]
+name = "median"
 harness = false
 
 [profile.bench]
