@@ -24,8 +24,9 @@
           eclint -exclude "Cargo.lock"
 
           echo "Checking spelling..."
+          # Generated changelogs preserve historical commit subjects verbatim.
           codespell \
-            --skip target,.git \
+            --skip target,.git,CHANGELOG.md \
             --ignore-words-list crate
         '';
       in

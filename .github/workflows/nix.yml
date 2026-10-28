@@ -31,10 +31,11 @@ jobs:
             eclint \
               -exclude "Cargo.lock"
       - name: Check spelling
+        # Generated changelogs preserve historical commit subjects verbatim.
         run: |
           nix develop --command \
             codespell \
-              --skip target,.git \
+              --skip target,.git,CHANGELOG.md \
               --ignore-words-list crate
 
   build-and-test-nix:
