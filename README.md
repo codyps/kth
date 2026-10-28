@@ -117,3 +117,8 @@ for 30 days. To refresh the public site manually, run **Benchmark report** on
 `main` using the `ci`, `full`, or `quick` profile. Other branches only produce an
 artifact. Pages uses GitHub Actions as its source, with the `github-pages`
 environment restricted to deployments from `main`; no extra token is needed.
+
+CI builds and tests with stable, beta, and nightly Rust on Linux, uses the pinned
+formatter, checks spelling and changed-line whitespace, and tests the report
+generator. Nix is optional for local development; CI does not install Nix or run
+duplicate Rust builds through Nix on Linux and macOS.
