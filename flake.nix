@@ -46,6 +46,13 @@
           ];
         };
 
+        devShells.benchmarks = mkShell {
+          nativeBuildInputs = with pkgs; [
+            rustup
+            (python3.withPackages (ps: [ ps.matplotlib ]))
+          ];
+        };
+
 
         devShells.default = mkShell {
           nativeBuildInputs = [ run-lint ] ++ (with pkgs; [

@@ -1,0 +1,24 @@
+[package]
+name = "kth-turboselect-bench"
+version = "0.0.0"
+edition = "2021"
+publish = false
+autobenches = false
+
+[dev-dependencies]
+kth = { path = "../.." }
+criterion = "0.8"
+rand = "0.9"
+# Upstream has no crates.io release; keep this out of kth's published manifest.
+turboselect = { git = "https://github.com/koskinev/turboselect", rev = "d8753c4ffe5b47f28670fea21d56cf3658d51b9b" }
+
+[[bench]]
+name = "compare"
+harness = false
+
+[[bench]]
+name = "scaling"
+harness = false
+
+[profile.bench]
+debug = 2

@@ -62,5 +62,7 @@ jobs:
           key: cargo-${{ matrix.os }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Test
         run: |
-          nix develop --command \
-            cargo test
+          # Benchmark dependencies require Rust 1.95+, newer than the pinned Nix compiler.
+          rustup update stable
+          nix develop .#benchmarks --command \
+            rustup run stable cargo test
