@@ -2,6 +2,9 @@ use core::hint::black_box;
 use criterion::{criterion_group, BatchSize, Criterion};
 use rand::prelude::*;
 
+#[path = "median_selectors.rs"]
+mod median_selectors;
+
 // Odd lengths give every implementation the same single-median result.
 const LEN: usize = 8193;
 
@@ -23,18 +26,27 @@ fn bench_median<T: Ord + Clone + core::fmt::Debug>(
     });
 }
 
+fn selection_medians<T: Ord + Copy + core::fmt::Debug>(
+    c: &mut Criterion,
+    prefix: &str,
+    input: &[T],
+) {
+    macro_rules! register {
+        ($name:literal, $values:ident, $index:ident, $select:block) => {
+            bench_median(c, &format!("{prefix}/{}", $name), input, |$values| {
+                let $index = $values.len() / 2;
+                $select;
+                $values[$index]
+            });
+        };
+    }
+    median_selectors::for_each!(register, values, index);
+}
+
 fn median_u8(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(42);
     let input: Vec<u8> = (0..LEN).map(|_| rng.random()).collect();
-    bench_median(c, "median-only/u8/kth", &input, |v| {
-        let i = v.len() / 2;
-        kth::partition_by_kth(v, i);
-        v[i]
-    });
-    bench_median(c, "median-only/u8/std", &input, |v| {
-        let i = v.len() / 2;
-        *v.select_nth_unstable(i).1
-    });
+    selection_medians(c, "median-only/u8", &input);
     // This histogram-based API leaves its input unpartitioned.
     bench_median(c, "median-only/u8/medians", &input, |v| {
         medians::medianu8(v).unwrap().0
@@ -44,15 +56,7 @@ fn median_u8(c: &mut Criterion) {
 fn median_u64(c: &mut Criterion) {
     let mut rng = StdRng::seed_from_u64(42);
     let input: Vec<u64> = (0..LEN).map(|_| rng.random()).collect();
-    bench_median(c, "median-only/u64/kth", &input, |v| {
-        let i = v.len() / 2;
-        kth::partition_by_kth(v, i);
-        v[i]
-    });
-    bench_median(c, "median-only/u64/std", &input, |v| {
-        let i = v.len() / 2;
-        *v.select_nth_unstable(i).1
-    });
+    selection_medians(c, "median-only/u64", &input);
     bench_median(
         c,
         "median-only/u64/medians",

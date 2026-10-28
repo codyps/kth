@@ -2,6 +2,7 @@ use core::hint::black_box;
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use rand::prelude::*;
 
+mod median_selectors;
 mod scaling_cases;
 
 fn partitions(c: &mut Criterion) {
@@ -49,6 +50,22 @@ fn bench_median<T: Ord + Clone + core::fmt::Debug>(
     });
 }
 
+fn selection_medians<T: Ord + Copy + core::fmt::Debug>(
+    group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
+    input: &[T],
+) {
+    macro_rules! register {
+        ($name:literal, $values:ident, $index:ident, $select:block) => {
+            bench_median(group, $name, input, |$values| {
+                let $index = $values.len() / 2;
+                $select;
+                $values[$index]
+            });
+        };
+    }
+    median_selectors::for_each!(register, values, index);
+}
+
 fn medians(c: &mut Criterion) {
     // Keep the actual odd length in each benchmark ID and on the chart's x axis.
     let sizes: std::collections::BTreeSet<_> =
@@ -57,15 +74,7 @@ fn medians(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(42);
         let input: Vec<u8> = (0..n).map(|_| rng.random()).collect();
         let mut group = c.benchmark_group("scaling-median/u8");
-        bench_median(&mut group, "kth", &input, |v| {
-            let i = v.len() / 2;
-            kth::partition_by_kth(v, i);
-            v[i]
-        });
-        bench_median(&mut group, "std", &input, |v| {
-            let i = v.len() / 2;
-            *v.select_nth_unstable(i).1
-        });
+        selection_medians(&mut group, &input);
         bench_median(&mut group, "medians", &input, |v| {
             medians::medianu8(v).unwrap().0
         });
@@ -74,15 +83,7 @@ fn medians(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(42);
         let input: Vec<u64> = (0..n).map(|_| rng.random()).collect();
         let mut group = c.benchmark_group("scaling-median/u64");
-        bench_median(&mut group, "kth", &input, |v| {
-            let i = v.len() / 2;
-            kth::partition_by_kth(v, i);
-            v[i]
-        });
-        bench_median(&mut group, "std", &input, |v| {
-            let i = v.len() / 2;
-            *v.select_nth_unstable(i).1
-        });
+        selection_medians(&mut group, &input);
         bench_median(
             &mut group,
             "medians",

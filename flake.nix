@@ -49,7 +49,7 @@
         devShells.benchmarks = mkShell {
           nativeBuildInputs = with pkgs; [
             rustup
-            (python3.withPackages (ps: [ ps.matplotlib ]))
+            (python3.withPackages (ps: [ ps.matplotlib ps.plotly ]))
           ];
         };
 

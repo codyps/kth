@@ -21,8 +21,8 @@ class CriterionResultsTest(unittest.TestCase):
                 name = f"{suite}/{case}/{algorithm}/{n}"
             elif suite == "experimental":
                 name = f"turboselect-comparison/{algorithm}/{case}"
-            elif suite == "median-only":
-                name = f"median-only/{case}/{algorithm}"
+            elif suite in report.MEDIAN_SUITES:
+                name = f"{suite}/{case}/{algorithm}"
             else:
                 name = f"{algorithm} {case}"
             path = self.raw / str(index) / "new"
@@ -37,7 +37,7 @@ class CriterionResultsTest(unittest.TestCase):
 
     def test_loads_complete_run_without_merging_harness_baselines(self):
         rows = report.load_results(self.raw, self.sizes)
-        self.assertEqual(len(rows), 117)
+        self.assertEqual(len(rows), 177)
         baselines = [r for r in rows if r["algorithm"] == "kth" and r["case"] == "rand fixed"]
         self.assertEqual({r["suite"] for r in baselines}, {"partition", "experimental"})
         self.assertEqual(rows[0]["mean_ns"], 2000.0)
@@ -51,6 +51,18 @@ class CriterionResultsTest(unittest.TestCase):
         self.assertEqual({r["n"] for r in medians}, {17, 65})
         partitions = [r for r in rows if r["suite"] == "scaling-partition"]
         self.assertEqual({r["n"] for r in partitions}, {16, 64})
+
+    def test_retrieval_includes_partition_selectors_for_both_types(self):
+        rows = report.load_results(self.raw, self.sizes)
+        names = {"kth", "std", "order-stat", "pdqselect", "adqselect", "tpt-simd-sort",
+                 "sort", "sort_unstable", "medians"}
+        for suite in ("median-only", "scaling-median"):
+            for kind in ("u8", "u64"):
+                self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == kind}, names)
+        for suite in ("median-only-experimental", "scaling-median-experimental"):
+            for kind in ("u8", "u64"):
+                self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == kind},
+                                 {"kth", "std", "turboselect", "medians"})
 
     def test_incomplete_scaling_series_cannot_be_graphed(self):
         path = next(p for p in self.paths if "scaling-partition" in (p / "benchmark.json").read_text())
