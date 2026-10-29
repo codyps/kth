@@ -12,6 +12,10 @@ categories = [ "no-std", "algorithms" ]
 edition = "2021"
 autobenches = false
 
+[features]
+# Diagnostic runs only: enables thread-local counters and requires std.
+bench-instrumentation = []
+
 [dev-dependencies]
 quickcheck = "1"
 rand = "0.9"

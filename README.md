@@ -10,5 +10,7 @@ odd-length array, selecting `len / 2` gives the median.
 Comparison benchmarks against other selection algorithms and full-sort baselines
 are available in the [performance report](https://codyps.github.io/kth/).
 See the [benchmark guide](benchmarks/README.md) to run them locally.
+The [selection diagnostics](benchmarks/README.md#rank-dispatch-and-cache-diagnostics)
+also measure rank sweeps, dispatch boundaries, cache footprints, and operation counts.
 
 For development, CI, and release instructions, see [CONTRIBUTING.md](CONTRIBUTING.md).

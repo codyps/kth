@@ -24,6 +24,13 @@
 
 #![cfg_attr(not(test), no_std)]
 
+#[cfg(feature = "bench-instrumentation")]
+extern crate std;
+
+/// Benchmark support; not part of the stable selection API.
+#[doc(hidden)]
+pub mod instrumentation;
+
 mod select;
 
 /// Add k-th order element operations to slices.
@@ -56,7 +63,7 @@ impl<T: Ord> SliceExtKth for [T] {
 ///
 /// The k-th element can then be read from `self[pivot_order]`, if desired.
 ///
-/// Uses sampled pivots with a deterministic fallback for O(n) worst-case time,
+/// Uses rank-aware sampled pivots with a deterministic fallback for O(n) worst-case time,
 /// without allocating.
 ///
 /// # Panics

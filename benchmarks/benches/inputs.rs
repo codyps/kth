@@ -23,9 +23,13 @@ pub fn string_cases(extended: bool) -> impl Iterator<Item = &'static str> {
 }
 
 pub fn random_bank(n: usize) -> Vec<Vec<u64>> {
+    random_bank_of(n, 16, |x| x)
+}
+
+pub fn random_bank_of<T>(n: usize, count: usize, mut convert: impl FnMut(u64) -> T) -> Vec<Vec<T>> {
     let mut rng = StdRng::seed_from_u64(42);
-    (0..16)
-        .map(|_| (0..n).map(|_| rng.random()).collect())
+    (0..count)
+        .map(|_| (0..n).map(|_| convert(rng.random())).collect())
         .collect()
 }
 
