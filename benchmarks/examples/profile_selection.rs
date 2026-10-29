@@ -1,10 +1,19 @@
 //! Small driver for perf: setup, validation and reporting stay outside the loop.
 //! perf stat includes buffer reset; perf record separates it from selection.
+#[allow(dead_code)]
+#[path = "../benches/support/before_followup.rs"]
+mod before_followup;
+#[allow(dead_code)]
+#[path = "../benches/support/ordered_hint.rs"]
+mod ordered_hint;
 use std::{fmt::Debug, hint::black_box};
 
 #[path = "../benches/support/adaptive.rs"]
 #[allow(dead_code)]
 mod adaptive;
+#[allow(dead_code)]
+#[path = "../benches/support/byte_tuning.rs"]
+mod byte_tuning;
 #[path = "../benches/support/cyclic_baseline.rs"]
 #[allow(dead_code)]
 mod cyclic_baseline;
@@ -25,6 +34,8 @@ fn standard<T: Ord>(a: &mut [T], k: usize) {
 fn selector<T: Ord>(name: &str) -> fn(&mut [T], usize) {
     match name {
         "kth" => kth::partition_by_kth,
+        "before-followup" => before_followup::select,
+        "ordered-hint" => ordered_hint::select,
         "isolated" => kth::benchmark_adaptive_partition_by_kth,
         // Validation still selects once; the repeated loop only resets buffers.
         "std" | "reset-only" => standard,
@@ -131,6 +142,12 @@ fn main() {
                 .collect();
             let select = match algorithm {
                 "kth-u8" => kth::partition_u8_by_kth,
+                "byte-before" => byte_tuning::baseline,
+                "compact16" => byte_tuning::compact,
+                "lanes8-16" => byte_tuning::lanes8,
+                "merged32" => byte_tuning::merged,
+                "bitmap32" => byte_tuning::bitmap,
+                "entropy8" => byte_tuning::entropy8,
                 "counting" => numeric_experiments::counting,
                 "counting4" => numeric_experiments::counting4,
                 "histogram" => numeric_experiments::histogram,

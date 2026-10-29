@@ -1,5 +1,7 @@
 #[path = "../benches/support/adaptive.rs"]
 mod adaptive;
+#[path = "../benches/support/byte_tuning.rs"]
+mod byte_tuning;
 #[allow(dead_code)]
 #[path = "../benches/support/cyclic_baseline.rs"]
 mod cyclic_baseline;
@@ -232,6 +234,52 @@ fn numeric_variants_match_sorting_on_duplicates_and_extremes() {
                     assert!(actual[k + 1..].iter().all(|v| *v >= actual[k]));
                     actual.sort_unstable();
                     assert_eq!(actual, expected);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn byte_counter_width_and_reconstruction_variants_preserve_every_byte() {
+    for n in [
+        1usize, 65, 1023, 1024, 1025, 1031, 4096, 65528, 65535, 65536, 65537,
+    ] {
+        for pattern in 0..6 {
+            let input: Vec<u8> = (0..n)
+                .map(|i| match pattern {
+                    0 => (i.wrapping_mul(7919)) as u8,
+                    1 => 255,
+                    2 => 0,
+                    3 => (i % 7) as u8,
+                    4 => {
+                        if i % 10 == 0 {
+                            i as u8
+                        } else {
+                            5
+                        }
+                    }
+                    _ => (n - i) as u8,
+                })
+                .collect();
+            let mut expected = input.clone();
+            expected.sort_unstable();
+            for k in [0, n / 100, n / 2, n - 1] {
+                for select in [
+                    byte_tuning::baseline,
+                    byte_tuning::compact,
+                    byte_tuning::lanes8,
+                    byte_tuning::merged,
+                    byte_tuning::bitmap,
+                    byte_tuning::entropy8,
+                ] {
+                    let mut a = input.clone();
+                    select(&mut a, k);
+                    assert_eq!(a[k], expected[k]);
+                    assert!(a[..k].iter().all(|x| *x <= a[k]));
+                    assert!(a[k + 1..].iter().all(|x| *x >= a[k]));
+                    a.sort_unstable();
+                    assert_eq!(a, expected);
                 }
             }
         }

@@ -1,6 +1,8 @@
 //! Integer-only selectors, timed with the same cloned-input protocol.
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use std::{fmt::Debug, hint::black_box};
+#[path = "support/byte_tuning.rs"]
+mod byte_tuning;
 #[allow(dead_code)]
 mod inputs;
 #[path = "support/numeric_experiments.rs"]
@@ -113,6 +115,12 @@ fn suite(c: &mut Criterion) {
                     for (algorithm, select) in [
                         ("kth", kth::partition_by_kth as fn(&mut [u8], usize)),
                         ("kth-u8", kth::partition_u8_by_kth),
+                        ("byte-before", byte_tuning::baseline),
+                        ("compact16", byte_tuning::compact),
+                        ("lanes8-16", byte_tuning::lanes8),
+                        ("merged32", byte_tuning::merged),
+                        ("bitmap32", byte_tuning::bitmap),
+                        ("entropy8", byte_tuning::entropy8),
                         ("std", standard),
                         ("histogram", numeric_experiments::histogram),
                         ("histogram4", numeric_experiments::histogram4),

@@ -390,3 +390,31 @@ fn guarded_samples_and_blocks_preserve_contract_across_thresholds() {
         }
     }
 }
+
+#[test]
+fn large_ordered_pivots_preserve_partition_on_sparse_disorder() {
+    for n in [16383usize, 16384, 16385, 65536, 65537] {
+        let sorted: Vec<u64> = (0..n as u64).collect();
+        let mut reversed = sorted.clone();
+        reversed.reverse();
+        let mut disturbed = sorted.clone();
+        disturbed.swap(0, n - 1);
+        disturbed.swap(n / 3, 2 * n / 3);
+        let mut alternating: Vec<_> = (0..n as u64)
+            .map(|i| {
+                if i % 2 == 0 {
+                    i / 2
+                } else {
+                    n as u64 - 1 - i / 2
+                }
+            })
+            .collect();
+        // Most of the data can look ordered while the requested position is an outlier.
+        alternating[n / 2] = u64::MAX;
+        for a in [sorted, reversed, disturbed, alternating] {
+            for k in [n / 100, n / 8, n / 4, n / 2, 3 * n / 4, n * 99 / 100] {
+                check(&a, k);
+            }
+        }
+    }
+}
