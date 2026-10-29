@@ -2,6 +2,12 @@
 //! perf stat includes buffer reset; perf record separates it from selection.
 use std::{fmt::Debug, hint::black_box};
 
+#[path = "../benches/support/adaptive.rs"]
+#[allow(dead_code)]
+mod adaptive;
+#[path = "../benches/support/cyclic_baseline.rs"]
+#[allow(dead_code)]
+mod cyclic_baseline;
 #[path = "../benches/support/experiments.rs"]
 #[allow(dead_code)]
 mod experiments;
@@ -21,6 +27,12 @@ fn selector<T: Ord>(name: &str) -> fn(&mut [T], usize) {
         "kth" => kth::partition_by_kth,
         "std" => standard,
         "control" => experiments::control,
+        "adaptive-control" => adaptive::adaptive_control,
+        "guarded" => adaptive::guarded,
+        "strict-duplicates" => adaptive::strict_duplicates,
+        "bounded-duplicates" => adaptive::bounded_duplicates,
+        "guarded-cyclic" => adaptive::guarded_cyclic,
+        "combined" => adaptive::combined,
         "block128" => experiments::block128,
         "fr-sample" => experiments::fr_sample,
         "fr-sample-block" => experiments::fr_sample_block,

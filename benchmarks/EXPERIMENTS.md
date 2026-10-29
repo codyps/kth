@@ -190,3 +190,81 @@ frame pointers or other compiler flags.
   the two-sample switching rule; memory-transfer models are not timing guarantees.
 - [NumPy x86-simd-sort](https://github.com/numpy/x86-simd-sort): the actual SIMD
   reference, built from its pinned source through a small C ABI wrapper.
+
+## Adaptive sampling experiments
+
+The `experiments` feature also exposes a frozen copy of the selector after the
+small-input improvement (`adaptive-control`) and these variants:
+
+| Variant | Change from that control |
+| --- | --- |
+| `stratified-mid` | Growing stratified sample for interior ranks at n >= 4096 |
+| `adaptive-block` | 128-element buffered partition for large records, gated by disorder |
+| `stratified-block` | Both changes above |
+| `stratified-all` | Growing samples for tail ranks too, plus gated blocks |
+| `guarded` | Raise both thresholds to 16,384, preserve the 17–32-byte sampler, skip growing samples on repeated/predictable input |
+| `strict-duplicates` | Require all three sample representatives to match before a three-way pass |
+| `bounded-duplicates` | Strict hint plus a discarded ancestor lower bound |
+| `guarded-cyclic` | Guarded samples for every width, cyclic partitions for 9–32-byte values |
+| `combined` | Guarded/cyclic plus strict hints and ancestor bounds |
+
+The growing sample contains min(2*floor(sqrt(n)), 1024) elements. Deterministic
+jitter chooses one element from each disjoint stratum. Forward gathering never
+overwrites a future stratum. A rank-dependent inward bias aims to avoid selecting
+a sample extreme for tail ranks. The existing selector partitions the sample.
+This is a heuristic experiment, not an implementation of SELECT's proof. All
+variants retain the four-times-input partition budget and deterministic fallback.
+The disorder gate counts changes in the comparison with the pivot at 16 evenly
+spaced positions; at least four changes enable the expensive kernel.
+
+An initial short screen covered 160 case/length/rank groups, with n=4096 and
+65,536, p01/median/p99, and u8/u64/64-byte/String/str inputs. Equal cases only need
+one rank. It used eight seeded banks, 20 flat samples, 20 ms warmup, and 100 ms
+measurement, pinned to CPU 8. These are screening results, not final guarantees:
+
+- Ungated growing samples caused substantial small-array and ordered-input
+  regressions. Gating and the higher threshold removed most of these losses.
+- `guarded` random medians at 65,536 took 0.577x/0.826x/0.381x/0.926x/0.819x
+  the control time for u8/u64/64-byte/String/str, respectively. Its worst screen
+  regression was 7.4%; four of 160 cases regressed more than 5%.
+- Strict duplicate hints cut random-byte time to 0.468x the control, but nearly
+  doubled dominant-value median time at n=4096. Ancestor detection did not fix
+  that regression. These remain benchmark variants.
+
+Reproduce a screen using the existing selection harness:
+
+```sh
+KTH_BENCH_SIZES=4096,65536 KTH_BENCH_TYPES=u8,u64,64-byte,String,str KTH_BENCH_RANKS=p01,median,p99 KTH_BENCH_INPUTS=8 KTH_BENCH_FLAT=1 taskset -c 8 cargo bench --manifest-path benchmarks/Cargo.toml --features experiments --bench selection -- 'selection/.*/(random|sorted|reverse|organ-pipe|sawtooth|equal|dominant|clustered)/.*/(kth|std|adaptive-control|guarded|strict-duplicates|bounded-duplicates)/' --sample-size 20 --warm-up-time 0.02 --measurement-time 0.1 --nresamples 1000 --noplot
+```
+
+A broader follow-up screen added one-outlier and string-prefix/variable-length
+cases (188 groups, 1,128 timing rows) and compared `guarded`, `guarded-cyclic`,
+and `combined`. At n=65,536 the cyclic candidate improved String random median
+time by 9.8% and prefix256 by 16.6% versus the control, but sorted String p01
+regressed 45.2%. The combined variant retained the dominant-value regression.
+Cyclic remains a benchmark variant; swap-based partitioning stays the default.
+
+Local raw samples and frozen binaries are in `target/perf-improvements/`.
+
+### Hardware counter findings
+
+`perf stat` works in this executor. The actual production `kth-u8` API and `std`
+were measured with the same optimized profiling binary: eight seeded random
+banks, n=65,536, median, 5,000 calls, three repetitions, pinned to CPU 8. Counts
+include preallocated buffer reset and initial setup/validation.
+
+| Selector | Cycles | Instructions | Branches | Branch misses |
+| --- | ---: | ---: | ---: | ---: |
+| `std` | 1,104,079,638 | 6,576,026,494 | 350,549,497 | 151,011 |
+| `kth-u8` | 346,005,030 | 1,004,274,535 | 102,533,029 | 51,651 |
+
+The byte API retired 84.7% fewer instructions and used 68.7% fewer cycles in
+this diagnostic. Histogram reconstruction reduces work as well as branch misses.
+Criterion runs remain the basis for elapsed-time comparisons.
+
+`perf record` could not synthesize process information: this executor exposes
+its parent PID namespace through `/proc`. A private namespace with a matching
+proc mount was also denied by the operating system. Consequently there is no
+sampled call-stack/source-line attribution from this environment; do not interpret
+these global counters as a profile of individual functions. The profiling driver
+and record/report commands above remain usable on a host with matching mounts.

@@ -1,9 +1,73 @@
+#[path = "../benches/support/adaptive.rs"]
+mod adaptive;
+#[allow(dead_code)]
+#[path = "../benches/support/cyclic_baseline.rs"]
+mod cyclic_baseline;
 #[path = "../benches/support/experiments.rs"]
 mod experiments;
 #[path = "../benches/support/numeric_experiments.rs"]
 mod numeric_experiments;
 
 use rand::{rngs::StdRng, Rng, SeedableRng};
+
+#[test]
+fn adaptive_candidates_preserve_partition_contract_on_ordered_and_mixed_inputs() {
+    fn check<T: Ord + Clone + std::fmt::Debug>(input: &[T], k: usize) {
+        let mut expected = input.to_vec();
+        expected.sort_unstable();
+        for select in [
+            adaptive::adaptive_control,
+            adaptive::stratified_mid,
+            adaptive::adaptive_block,
+            adaptive::stratified_block,
+            adaptive::stratified_all,
+            adaptive::guarded,
+            adaptive::strict_duplicates,
+            adaptive::bounded_duplicates,
+            adaptive::guarded_cyclic,
+            adaptive::combined,
+        ] {
+            let mut actual = input.to_vec();
+            select(&mut actual, k);
+            assert_eq!(actual[k], expected[k]);
+            assert!(actual[..k].iter().all(|v| v <= &actual[k]));
+            assert!(actual[k + 1..].iter().all(|v| v >= &actual[k]));
+            actual.sort_unstable();
+            assert_eq!(actual, expected);
+        }
+    }
+    let mut rng = StdRng::seed_from_u64(1793250000);
+    for n in [65usize, 1024, 4095, 4096, 4097, 8192, 16384, 16385] {
+        for pattern in 0..7 {
+            let input: Vec<u64> = (0..n)
+                .map(|i| match pattern {
+                    0 => rng.random(),
+                    1 => i as u64,
+                    2 => (n - i) as u64,
+                    3 => i.min(n - 1 - i) as u64,
+                    4 => (i % 7) as u64,
+                    5 => 7,
+                    _ => {
+                        if i % 17 == 0 {
+                            rng.random()
+                        } else {
+                            7
+                        }
+                    }
+                })
+                .collect();
+            let wide: Vec<_> = input.iter().map(|v| [*v; 8]).collect();
+            let strings: Vec<_> = input.iter().map(|v| format!("{v:016x}")).collect();
+            let borrowed: Vec<_> = strings.iter().map(String::as_str).collect();
+            for k in [0, 1, n / 100, n / 8, n / 2, n - n / 8, n - 2, n - 1] {
+                check(&input, k);
+                check(&wide, k);
+                check(&strings, k);
+                check(&borrowed, k);
+            }
+        }
+    }
+}
 
 #[test]
 fn generic_variants_preserve_the_complete_partition_contract() {

@@ -424,7 +424,7 @@ fn floyd_rivest_pivot<T: Ord, const REPEAT9: bool>(a: &mut [T], k: usize) -> (us
 
 // The lower bound lives in a discarded slice. Equality proves that no active
 // value is smaller, so one equality test suffices instead of general cmp.
-fn partition_min_equal<T: Ord>(a: &mut [T], pivot: usize) -> usize {
+pub(crate) fn partition_min_equal<T: Ord>(a: &mut [T], pivot: usize) -> usize {
     instrumentation::partition_pass();
     instrumentation::scanned(a.len() - 1);
     instrumentation::swap(a, 0, pivot);
@@ -439,7 +439,7 @@ fn partition_min_equal<T: Ord>(a: &mut [T], pivot: usize) -> usize {
     count + 1
 }
 
-fn block_partition<T: Ord, const B: usize>(a: &mut [T], pivot: usize) -> usize {
+pub(crate) fn block_partition<T: Ord, const B: usize>(a: &mut [T], pivot: usize) -> usize {
     instrumentation::partition_pass();
     instrumentation::swap(a, 0, pivot);
     let (pivot, tail) = a.split_first_mut().unwrap();
