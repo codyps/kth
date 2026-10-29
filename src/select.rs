@@ -19,13 +19,40 @@ pub(crate) fn select<T: Ord>(a: &mut [T], k: usize) {
         select_small(a, k);
         return;
     }
-    select_with_budget(a, k, a.len().saturating_mul(4));
+    let n = a.len();
+    let budget = n.saturating_mul(4);
+    let use_fixed = if n < GROWING_SAMPLE_MIN
+        || k == 0
+        || k == n - 1
+        || (size_of::<T>() > 16 && size_of::<T>() <= 32)
+    {
+        true
+    } else {
+        let _sampling = instrumentation::phase(Phase::Sampling);
+        choose_pivot(a, k).1
+    };
+    if use_fixed {
+        // Keep the established loop for repeated entry samples and the recursive
+        // 17–32-byte sampler, as well as arrays below the adaptive threshold.
+        select_with_budget::<_, false>(a, k, budget);
+    } else {
+        select_large(a, k, budget);
+    }
 }
 
-// Keep the large driver independent of caller inlining and register pressure.
-// The separately inlined small-input path above keeps its short-call behavior.
+// Isolate the adaptive driver from caller inlining, while preserving the
+// original inlined fixed-policy driver below the activation threshold.
 #[inline(never)]
-fn select_with_budget<T: Ord>(mut a: &mut [T], mut k: usize, mut budget: usize) {
+fn select_large<T: Ord>(a: &mut [T], k: usize, budget: usize) {
+    select_with_budget::<_, true>(a, k, budget);
+}
+
+#[inline(always)]
+fn select_with_budget<T: Ord, const ADAPTIVE: bool>(
+    mut a: &mut [T],
+    mut k: usize,
+    mut budget: usize,
+) {
     loop {
         let _partition_phase = instrumentation::phase(Phase::Partition);
         let n = a.len();
@@ -58,10 +85,10 @@ fn select_with_budget<T: Ord>(mut a: &mut [T], mut k: usize, mut budget: usize) 
         budget -= n;
 
         let sampling_phase = instrumentation::phase(Phase::Sampling);
-        let (pivot, repeated) = if size_of::<T>() > 16 && size_of::<T>() <= 32 {
-            choose_pivot(a, k)
-        } else {
+        let (pivot, repeated) = if ADAPTIVE && !(size_of::<T>() > 16 && size_of::<T>() <= 32) {
             choose_adaptive_pivot(a, k)
+        } else {
+            choose_pivot(a, k)
         };
         drop(sampling_phase);
         if repeated {
@@ -90,7 +117,7 @@ fn select_with_budget<T: Ord>(mut a: &mut [T], mut k: usize, mut budget: usize) 
         // elements, including String. For larger elements, Hoare moves less data.
         let p = if size_of::<T>() <= 32 {
             partition(a, pivot)
-        } else if n >= GROWING_SAMPLE_MIN && is_disordered(a, pivot) {
+        } else if ADAPTIVE && n >= GROWING_SAMPLE_MIN && is_disordered(a, pivot) {
             block_partition(a, pivot)
         } else {
             hoare_partition(a, pivot)
@@ -578,7 +605,7 @@ mod tests {
             sorted.sort_unstable();
             for k in [1, n / 4, n / 2, n - 2] {
                 let mut actual = input.clone();
-                select_with_budget(&mut actual, k, 0);
+                select_with_budget::<_, true>(&mut actual, k, 0);
                 assert_eq!(actual[k], sorted[k]);
                 assert!(actual[..k].iter().all(|x| *x <= actual[k]));
                 assert!(actual[k + 1..].iter().all(|x| *x >= actual[k]));
@@ -620,7 +647,7 @@ mod tests {
     fn exhausted_budget_counts_an_emergency_fallback() {
         instrumentation::reset();
         let mut values: Vec<_> = (0..128).rev().collect();
-        select_with_budget(&mut values, 64, 0);
+        select_with_budget::<_, true>(&mut values, 64, 0);
         let counts = instrumentation::snapshot();
         assert_eq!(values[64], 64);
         assert_eq!(counts.budget_fallbacks, 1);

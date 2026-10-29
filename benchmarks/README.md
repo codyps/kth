@@ -159,7 +159,10 @@ including the larger string samples. At active lengths of at least 16,384,
 a 16-position disorder probe can enable a jittered stratified sample of up to
 1,024 values. It rejects repeated probe values equal to the pivot. Growth keeps
 the existing tail pivots for elements up to 32 bytes; larger records can grow
-samples for tail ranks too. The 17–32-byte recursive sampler remains.
+samples for tail ranks too. Calls with repeated entry samples retain the fixed
+policy, as do 17–32-byte elements. Arrays below the threshold keep the inlined
+fixed driver; the adaptive large-input driver is outlined to isolate its loops
+from caller code generation.
 For elements larger than 32 bytes, the same disorder gate can enable a buffered
 128-element partition; ordered inputs keep Hoare partitioning. Swap-based
 partitioning remains the default for smaller elements; cyclic remains experimental.

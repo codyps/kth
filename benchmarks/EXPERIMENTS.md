@@ -279,7 +279,8 @@ The public selector uses a conservative refinement of `guarded`: samples can
 grow at active lengths >= 16,384 if the fixed sample is distinct and the disorder
 probe contains no value equal to the pivot. Elements up to 32 bytes retain the
 existing outer-eighth tail pivots; the 17–32-byte recursive sampler is preserved
-for every rank. Larger records can grow tail samples too. Disordered records
+for every rank. Calls with repeated entry samples keep the fixed driver. Larger
+records can grow tail samples too. Disordered records
 larger than 32 bytes can use buffered partitioning; other inputs keep their
 existing partition kernel. Cyclic remains benchmark-only.
 
@@ -287,7 +288,9 @@ Rejecting equal probes avoids the extra passes observed on few-unique borrowed
 strings in the first candidate. Sampling decisions are outlined: placing those
 checks in the hot scalar driver caused a reproducible 25% slowdown in ordered
 u64 cases in the direct-call harness, despite little difference in the separate
-function-pointer profiling driver. Moving the checks out restored those timings.
+function-pointer profiling driver. The adaptive large driver is outlined, while calls below its threshold, with
+repeated entry samples, or with 17–32-byte values keep the inlined fixed driver.
+This isolates the adaptive loops while preserving established duplicate paths.
 Recursive sample selection is counted as sampling work in instrumented builds.
 The four-times-input budget bounds outer partition work, and sample selection
 has its own bounded fallback. The API remains allocation-free and uses safe
