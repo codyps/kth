@@ -20,6 +20,11 @@ INTERNAL = ("sampling_comparisons", "partition_comparisons", "fallback_compariso
             "elements_scanned", "bytes_moved", "partition_passes", "small_slice_dispatches", "budget_fallbacks")
 INTEGER_FIELDS = ("k", "element_bytes", "array_bytes", "calls", "comparisons", *INTERNAL)
 COLORS = {"kth": "#2864dc", "swap": "#cc493d", "cyclic": "#d28b12", "rank-before": "#907451", "original": "#8255b5", "std": "#14836c"}
+COLORS.update(dict(zip(
+    ("control", "small16", "small32", "fr-window", "expand", "block64", "block128", "ancestor", "ancestor-sample", "sesquick", "histogram", "histogram4", "radix8", "radix11", "x86-simd"),
+    ("#666666", "#9c755f", "#bab0ac", "#e15759", "#b07aa1", "#f28e2b", "#edc948", "#59a14f", "#76b7b2", "#af7aa1", "#ff9da7", "#d37295", "#499894", "#86bcb6", "#79706e"),
+)))
+COLORS.update({"network16": "#117733", "fr-sample": "#228833", "fr-sample-block": "#aa3377", "fr-block": "#e41a1c", "ninther-all": "#984ea3", "counting": "#ff7f00", "counting4": "#a65628"})
 
 
 def source_hashes():

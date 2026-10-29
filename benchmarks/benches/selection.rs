@@ -4,6 +4,9 @@ use std::hint::black_box;
 
 #[path = "support/cyclic_baseline.rs"]
 mod cyclic_baseline;
+#[cfg(feature = "experiments")]
+#[path = "support/experiments.rs"]
+mod experiments;
 #[allow(dead_code)]
 mod inputs;
 #[path = "support/rank_baseline.rs"]
@@ -33,6 +36,9 @@ impl selection_cases::Runner for Timing<'_> {
         k: usize,
     ) {
         let mut group = self.0.benchmark_group(format!("selection/{name}/{rank}"));
+        if std::env::var_os("KTH_BENCH_FLAT").is_some() {
+            group.sampling_mode(criterion::SamplingMode::Flat);
+        }
         group.throughput(Throughput::Elements(inputs[0].len() as u64));
         macro_rules! register {
             ($name:literal, $select:path) => {{
@@ -82,6 +88,24 @@ impl selection_cases::Runner for Timing<'_> {
         register!("cyclic", cyclic_baseline::select);
         register!("rank-before", rank_baseline::select);
         register!("std", standard);
+        #[cfg(feature = "experiments")]
+        {
+            register!("control", experiments::control);
+            register!("small16", experiments::small16);
+            register!("small32", experiments::small32);
+            register!("fr-window", experiments::fr_window);
+            register!("expand", experiments::expand);
+            register!("block64", experiments::block64);
+            register!("block128", experiments::block128);
+            register!("ancestor", experiments::ancestor);
+            register!("ancestor-sample", experiments::ancestor_sample);
+            register!("sesquick", experiments::sesquick);
+            register!("fr-block", experiments::fr_block);
+            register!("ninther-all", experiments::ninther_all);
+            register!("fr-sample", experiments::fr_sample);
+            register!("fr-sample-block", experiments::fr_sample_block);
+            register!("network16", experiments::network16);
+        }
         group.finish();
     }
 }
