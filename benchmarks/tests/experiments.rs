@@ -245,8 +245,8 @@ fn byte_counter_width_and_reconstruction_variants_preserve_every_byte() {
     for n in [
         1usize, 65, 1023, 1024, 1025, 1031, 4096, 65528, 65535, 65536, 65537,
     ] {
-        for pattern in 0..6 {
-            let input: Vec<u8> = (0..n)
+        for pattern in 0..8 {
+            let mut input: Vec<u8> = (0..n)
                 .map(|i| match pattern {
                     0 => (i.wrapping_mul(7919)) as u8,
                     1 => 255,
@@ -262,16 +262,28 @@ fn byte_counter_width_and_reconstruction_variants_preserve_every_byte() {
                     _ => (n - i) as u8,
                 })
                 .collect();
+            if pattern >= 6 {
+                input.sort_unstable();
+                if pattern == 7 {
+                    input.reverse();
+                }
+            }
             let mut expected = input.clone();
             expected.sort_unstable();
             for k in [0, n / 100, n / 2, n - 1] {
                 for select in [
                     byte_tuning::baseline,
+                    byte_tuning::before_small,
                     byte_tuning::compact,
                     byte_tuning::lanes8,
                     byte_tuning::merged,
                     byte_tuning::bitmap,
                     byte_tuning::entropy8,
+                    byte_tuning::lanes1,
+                    byte_tuning::lanes2,
+                    byte_tuning::ordered_bytes,
+                    byte_tuning::adaptive_lanes,
+                    byte_tuning::sampled_lanes,
                 ] {
                     let mut a = input.clone();
                     select(&mut a, k);
@@ -281,6 +293,30 @@ fn byte_counter_width_and_reconstruction_variants_preserve_every_byte() {
                     a.sort_unstable();
                     assert_eq!(a, expected);
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn sampled_histograms_cover_the_full_narrow_lane_capacity() {
+    let limit = (u16::MAX as usize) * 8;
+    for n in (limit - 7..=limit + 1).chain(2047..=2049) {
+        for pattern in 0..3 {
+            let input: Vec<u8> = (0..n)
+                .map(|i| match pattern {
+                    0 => 255,
+                    1 if i < 9 => i as u8,
+                    1 => 5,
+                    _ => (i * 7919) as u8,
+                })
+                .collect();
+            let mut expected = input.clone();
+            expected.sort_unstable();
+            for select in [byte_tuning::sampled_lanes, kth::partition_u8_by_kth] {
+                let mut a = input.clone();
+                select(&mut a, n / 2);
+                assert_eq!(a, expected);
             }
         }
     }

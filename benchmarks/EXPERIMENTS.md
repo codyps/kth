@@ -422,3 +422,72 @@ Coverage limitation: the existing numeric byte cases named `sorted` and
 periodic inputs, not globally ordered byte slices above length 256. Historical
 measurements retain those exact inputs and labels. Truly ordered byte inputs
 need separate coverage before drawing conclusions about that distribution.
+
+## Dispersed bytes and the full narrow-counter range
+
+The follow-up keeps the concentration hint and adds a conservative diversity
+hint: nine prefix bytes must occupy at least eight different buckets in their
+low five bits. Dispersed data uses one u32 histogram up to 2,048 elements and
+two above that. This reduces counter initialization and bin summation for short
+inputs. The seven-value sawtooth fails the diversity hint and keeps four lanes.
+Misleading hints only change the kernel; every byte is still counted.
+
+Eight narrow lanes now cover lengths through 524,280: each receives at most
+ceil(n / 8) bytes, including one remainder byte, so every u16 counter fits.
+Larger slices retain the four-lane implementation. Matching neighbors within
+the middle sample window choose the anchor, so an isolated middle outlier does
+not hide a dominant value. Histograms still use at most four KiB of scratch.
+
+New `ordered-asc` and `ordered-desc` cases sort bytes after narrowing, across
+focused timing, operation-count and profiler inputs. Their monotonicity is
+checked in a regression test. Historical `sorted` and `reverse` cases keep
+their original wrapped ramps, preserving comparisons with earlier reports.
+
+| Benchmark variant | Purpose |
+| --- | --- |
+| `lanes-before` | Freeze the PR #24 explicit byte selector at `52e6222` |
+| `lanes1-32`, `lanes2-32` | Unconditionally use one or two u32 histograms |
+| `ordered-bytes` | Verify a monotonicity hint, then return or reverse |
+| `adaptive-lanes` | Combine concentration and a broader diversity bitmap in one sample loop |
+| `sampled-lanes` | Separate the cheap concentration and nine-byte diversity checks, as in the promoted implementation |
+
+One or two lanes alone lose badly on dominant and sawtooth distributions.
+The broad combined classifier adds up to 14% on small sawtooth inputs. The
+ordered-input experiment helps at length 1,024, but can nearly double time on
+clustered data while checking a long ordered prefix. These remain benchmark
+variants; only the separate lane hints are promoted.
+
+The final confirmation contains 405 rows, or 135 matched groups. It uses
+sixteen banks, CPU 8, 40 flat samples, 50 ms warmup, 300 ms measurement and
+5,000 resamples. Selected medians against the frozen PR #24 implementation:
+
+| Case | Elements | Before | After | Time reduction |
+| --- | ---: | ---: | ---: | ---: |
+| Random | 1,024 | 638 ns | 570 ns | 10.7% |
+| Random | 4,096 | 1,165 ns | 1,075 ns | 7.7% |
+| Random | 65,536 | 13.24 µs | 12.21 µs | 7.8% |
+| Random | 524,280 | 104.13 µs | 99.02 µs | 4.9% |
+| Dominant | 65,536 | 20.01 µs | 11.86 µs | 40.7% |
+| Dominant | 524,280 | 157.66 µs | 92.19 µs | 41.5% |
+
+The largest final baseline loss was 6.7% on wrapped-reverse p99 at length 4,096;
+small sawtooth cases also add a few percent. The implementation clears the 20%
+margin against `std` in 133 of 135 groups. The remaining two are random p01
+(589.7 vs 729.9 ns, 19.2% lower) and wrapped-ramp p01 (488.8 vs 562.1 ns, 13.1%
+lower), both at length 1,024. An earlier cohort cleared all 135 groups;
+run-to-run timing differences still matter. Generic workloads remain outside
+this byte-specific improvement, and the every-case target is still unmet.
+
+Separate `perf stat -r 3` runs include setup, validation and buffer resets:
+
+| Case | Calls | Cycles before / after | Instructions before / after |
+| --- | ---: | ---: | ---: |
+| Random, n=1,024 | 300,000 | 922.4M / 839.2M | 3,543.0M / 2,970.7M |
+| Random, n=65,536 | 20,000 | 1,331.5M / 1,231.2M | 3,912.0M / 3,894.9M |
+| Dominant, n=65,536 | 20,000 | 1,978.7M / 1,203.9M | 3,839.5M / 3,388.8M |
+| Dominant, n=524,280 | 5,000 | 3,903.3M / 2,351.6M | 7,489.6M / 6,513.5M |
+
+These support less summation/initialization work on small dispersed bytes and
+shorter dependent counter-update chains on dominant values. Global counters
+are not sampled source-line attribution. The archive at `target/target20-followup/`
+retains the final commands, source snapshots, binaries, samples and counters.

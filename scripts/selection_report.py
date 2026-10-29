@@ -21,6 +21,7 @@ INTERNAL = ("sampling_comparisons", "partition_comparisons", "fallback_compariso
 INTEGER_FIELDS = ("k", "element_bytes", "array_bytes", "calls", "comparisons", *INTERNAL)
 COLORS = {"kth": "#2864dc", "swap": "#cc493d", "cyclic": "#d28b12", "rank-before": "#907451", "original": "#8255b5", "std": "#14836c"}
 COLORS.update({"entropy8":"#4477aa", "byte-before":"#777777", "compact16":"#ee7733", "lanes8-16":"#cc3311", "merged32":"#009988", "bitmap32":"#aa4499", "before-followup":"#666666", "ordered-hint":"#33bbee"})
+COLORS.update({"lanes-before": "#666666", "sampled-lanes": "#cc6677", "adaptive-lanes": "#ee3377", "lanes1-32": "#ee7733", "lanes2-32": "#33bbee", "ordered-bytes": "#228833"})
 COLORS["isolated"] = "#0077bb"
 COLORS["kth-u8"] = "#009e73"
 COLORS.update({"verified8": "#aa4499", "verified32": "#ddaa33", "verified-duplicates": "#ee7733", "verified-guarded": "#ee3377", "verified-control": "#666666"})
