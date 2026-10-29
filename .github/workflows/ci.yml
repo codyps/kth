@@ -77,5 +77,17 @@ jobs:
       - run: cargo clippy --all-targets --all-features
       - run: cargo build --verbose --all-targets
       - run: cargo test --verbose --all-targets
+      - run: cargo test --all-features --lib --tests
       - run: cargo clippy --manifest-path benchmarks/Cargo.toml --all-targets --all-features
+      - run: cargo test --manifest-path benchmarks/Cargo.toml --tests --features instrumentation
       - run: cargo test --manifest-path benchmarks/Cargo.toml --all-targets
+        env:
+          KTH_BENCH_SIZES: "16,65,257"
+          KTH_BENCH_INPUTS: "2"
+      - name: Check operation-count export
+        run: cargo bench --manifest-path benchmarks/Cargo.toml --bench selection_counts --features instrumentation > target/selection-counts.csv
+        env:
+          KTH_BENCH_SIZES: "63,64,65"
+          KTH_BENCH_TYPES: "u64,String,33-byte"
+          KTH_BENCH_RANKS: "median"
+          KTH_BENCH_INPUTS: "2"

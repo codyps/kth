@@ -59,6 +59,34 @@ fn structured_and_random_inputs_match_sorting() {
 }
 
 #[test]
+fn tail_ranks_match_sorting_across_sampling_thresholds() {
+    let mut rng = StdRng::seed_from_u64(20261028);
+    for n in [65usize, 66, 127, 128, 255, 256, 1024, 4096] {
+        let mut ranks = vec![0, n / 4, n / 2, n - 1];
+        for boundary in [n / 84, n / 8] {
+            for k in [boundary.saturating_sub(1), boundary, boundary + 1] {
+                ranks.extend([k, n - 1 - k]);
+            }
+        }
+        ranks.sort_unstable();
+        ranks.dedup();
+        let inputs = [
+            (0..n as u64).collect::<Vec<_>>(),
+            (0..n as u64).rev().collect(),
+            (0..n).map(|i| i.min(n - 1 - i) as u64).collect(),
+            (0..n).map(|_| rng.random()).collect(),
+            (0..n).map(|_| u64::from(rng.random::<u8>())).collect(),
+            (0..n).map(|i| (i % 3) as u64).collect(),
+        ];
+        for input in inputs {
+            for &k in &ranks {
+                check(&input, k);
+            }
+        }
+    }
+}
+
+#[test]
 fn large_non_copy_elements_preserve_payloads() {
     let input: Vec<_> = (0..1024)
         .map(|i| format!("{:04}:{i}", (i * 37) % 101))
