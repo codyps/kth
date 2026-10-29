@@ -416,3 +416,9 @@ the earlier longer byte cohort misses two 1,024-byte groups. The largest final
 loss against the frozen baseline is 11% on 1,024 clustered bytes, where sampling
 adds overhead. Results vary across runs; this is not evidence of a universal
 20% margin. Several generic workloads also remain below the target.
+
+Coverage limitation: the existing numeric byte cases named `sorted` and
+`reverse` narrow integer ramps to u8, wrapping every 256 positions. They are
+periodic inputs, not globally ordered byte slices above length 256. Historical
+measurements retain those exact inputs and labels. Truly ordered byte inputs
+need separate coverage before drawing conclusions about that distribution.
