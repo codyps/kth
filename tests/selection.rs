@@ -2,14 +2,14 @@ use kth::partition_by_kth;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 use std::{cell::Cell, cmp::Ordering, rc::Rc};
 
-fn check(input: &[u64], k: usize) {
+fn check<T: Ord + Clone + std::fmt::Debug>(input: &[T], k: usize) {
     let mut sorted = input.to_vec();
     sorted.sort_unstable();
     let mut actual = input.to_vec();
     partition_by_kth(&mut actual, k);
     assert_eq!(actual[k], sorted[k]);
-    assert!(actual[..k].iter().all(|x| *x <= actual[k]));
-    assert!(actual[k + 1..].iter().all(|x| *x >= actual[k]));
+    assert!(actual[..k].iter().all(|x| x <= &actual[k]));
+    assert!(actual[k + 1..].iter().all(|x| x >= &actual[k]));
     actual.sort_unstable();
     assert_eq!(actual, sorted);
 }
@@ -17,13 +17,33 @@ fn check(input: &[u64], k: usize) {
 #[test]
 fn every_rank_matches_sorting_across_cutoffs() {
     let mut rng = StdRng::seed_from_u64(731);
-    for n in [1, 2, 8, 16, 63, 64, 65, 66, 80, 81, 82, 127, 128, 129, 256] {
+    for n in (1..=66).chain([80, 81, 82, 127, 128, 129, 256]) {
         let mut input: Vec<_> = (0..n as u64).collect();
         for _ in 0..8 {
             input.shuffle(&mut rng);
             for k in 0..n {
                 check(&input, k);
                 check(&input.iter().map(|v| v % 3).collect::<Vec<_>>(), k);
+            }
+        }
+    }
+}
+
+#[test]
+fn every_rank_matches_sorting_for_exhaustive_small_inputs() {
+    for n in 1..=9u32 {
+        for mut code in 0..3usize.pow(n) {
+            let input: Vec<_> = (0..n)
+                .map(|_| {
+                    let value = (code % 3) as u64;
+                    code /= 3;
+                    value
+                })
+                .collect();
+            let wider: Vec<_> = input.iter().map(|value| [*value; 2]).collect();
+            for k in 0..input.len() {
+                check(&input, k);
+                check(&wider, k);
             }
         }
     }
@@ -203,33 +223,38 @@ fn comparator_panics_preserve_owned_elements() {
         }
     }
     fn exercise<T: Ord + AsRef<Item<PAD>>, const PAD: usize>(wrap: impl Fn(Item<PAD>) -> T) {
-        for equal in [false, true] {
-            for panic_at in [0, 1, 8, 32, 128] {
-                let state = Rc::new(State {
-                    calls: Cell::new(0),
-                    drops: Cell::new(0),
-                    panic_at,
-                });
-                let mut values: Vec<_> = (0..256)
-                    .map(|id| {
-                        wrap(Item {
-                            _padding: [0; PAD],
-                            key: if equal { 0 } else { (id * 37) % 257 },
-                            id,
-                            state: state.clone(),
+        for n in [8, 16, 64, 256] {
+            for equal in [false, true] {
+                for panic_at in [0, 1, 8, 32, 128]
+                    .into_iter()
+                    .filter(|&at| n == 256 || at < n / 2)
+                {
+                    let state = Rc::new(State {
+                        calls: Cell::new(0),
+                        drops: Cell::new(0),
+                        panic_at,
+                    });
+                    let mut values: Vec<_> = (0..n)
+                        .map(|id| {
+                            wrap(Item {
+                                _padding: [0; PAD],
+                                key: if equal { 0 } else { (id * 37) % 257 },
+                                id,
+                                state: state.clone(),
+                            })
                         })
-                    })
-                    .collect();
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    partition_by_kth(&mut values, 128);
-                }));
-                assert!(result.is_err());
-                let mut ids: Vec<_> = values.iter().map(|v| v.as_ref().id).collect();
-                ids.sort_unstable();
-                assert_eq!(ids, (0..256).collect::<Vec<_>>());
-                assert_eq!(state.drops.get(), 0);
-                drop(values);
-                assert_eq!(state.drops.get(), 256);
+                        .collect();
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        partition_by_kth(&mut values, n / 2);
+                    }));
+                    assert!(result.is_err());
+                    let mut ids: Vec<_> = values.iter().map(|v| v.as_ref().id).collect();
+                    ids.sort_unstable();
+                    assert_eq!(ids, (0..n).collect::<Vec<_>>());
+                    assert_eq!(state.drops.get(), 0);
+                    drop(values);
+                    assert_eq!(state.drops.get(), n);
+                }
             }
         }
     }
@@ -242,7 +267,7 @@ fn comparator_panics_preserve_owned_elements() {
 fn strings_match_sorting_across_cutoffs_and_patterns() {
     let mut rng = StdRng::seed_from_u64(314159);
     for n in [
-        1, 2, 15, 16, 17, 31, 32, 33, 63, 64, 65, 66, 127, 128, 129, 575, 576, 577, 1024,
+        1, 2, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 66, 127, 128, 129, 575, 576, 577, 1024,
     ] {
         let random: Vec<_> = (0..n)
             .map(|i| format!("{:016x}{}", rng.random::<u64>(), "x".repeat(i % 31)))

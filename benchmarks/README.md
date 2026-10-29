@@ -131,3 +131,17 @@ KTH_BENCH_SIZES=16,64,1024,8192,65536 cargo bench --manifest-path benchmarks/Car
 After changing the selector, repeat the command with `--baseline before-strings`
 in place of `--save-baseline before-strings`. Keep the input sizes, sampling flags,
 compiler, and machine the same for both runs.
+
+For small-slice changes, include lengths around the tiny-sort and small-selection
+cutoffs, plus larger inputs that exercise small tails after partitioning:
+
+```sh
+KTH_BENCH_SIZES=8,16,24,32,48,64,65,128,1024,8192,65536 cargo bench --manifest-path benchmarks/Cargo.toml --bench selection -- '^selection/(u(8|64)/(random|sorted|reverse|sawtooth|equal)|String/(random|prefix256|few-unique)|str/(random|few-unique)|64-byte/random)/median/kth/' --sample-size 60 --warm-up-time 0.1 --measurement-time 0.5 --nresamples 10000 --save-baseline before-small --noplot
+```
+
+Run this on the unchanged revision first, then use `--baseline before-small` on
+the candidate. Preserve the same target directory across revisions so Criterion
+can find its saved measurements. The sixteen seeded inputs per random case and
+the structured cases help distinguish general improvements from one favorable
+input. The short sampling settings above are for local comparisons; confirm
+small differences with longer runs.
