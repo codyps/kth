@@ -25,6 +25,7 @@ fn standard<T: Ord>(a: &mut [T], k: usize) {
 fn selector<T: Ord>(name: &str) -> fn(&mut [T], usize) {
     match name {
         "kth" => kth::partition_by_kth,
+        "isolated" => kth::benchmark_adaptive_partition_by_kth,
         // Validation still selects once; the repeated loop only resets buffers.
         "std" | "reset-only" => standard,
         "control" => experiments::control,

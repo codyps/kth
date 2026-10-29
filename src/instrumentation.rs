@@ -31,6 +31,7 @@ mod enabled {
     std::thread_local! {
         static COUNTS: Cell<Counts> = Cell::new(Counts::default());
         static PHASE: Cell<Phase> = const { Cell::new(Phase::Other) };
+        #[cfg(feature = "bench-experiments")]
         static IN_SAMPLE: Cell<bool> = const { Cell::new(false) };
     }
 
@@ -54,11 +55,13 @@ mod enabled {
     pub fn comparison() {
         update(|c| {
             c.comparisons += 1;
+            let current = PHASE.with(Cell::get);
+            #[cfg(feature = "bench-experiments")]
             let current = IN_SAMPLE.with(|sample| {
                 if sample.get() {
                     Phase::Sampling
                 } else {
-                    PHASE.with(Cell::get)
+                    current
                 }
             });
             match current {
@@ -70,14 +73,17 @@ mod enabled {
         });
     }
 
+    #[cfg(feature = "bench-experiments")]
     pub(crate) struct SamplingGuard(bool);
 
+    #[cfg(feature = "bench-experiments")]
     impl Drop for SamplingGuard {
         fn drop(&mut self) {
             IN_SAMPLE.with(|sample| sample.set(self.0));
         }
     }
 
+    #[cfg(feature = "bench-experiments")]
     pub(crate) fn sampling_scope() -> SamplingGuard {
         SamplingGuard(IN_SAMPLE.with(|sample| sample.replace(true)))
     }
@@ -165,16 +171,16 @@ pub fn dispatch(small: bool) {
 
 // All recursive work selecting a growing sample belongs to sampling, even when
 // that nested selector changes its own phase. No state exists in timing builds.
-#[cfg(feature = "bench-instrumentation")]
+#[cfg(all(feature = "bench-instrumentation", feature = "bench-experiments"))]
 pub(crate) use enabled::sampling_scope;
 
-#[cfg(not(feature = "bench-instrumentation"))]
+#[cfg(all(not(feature = "bench-instrumentation"), feature = "bench-experiments"))]
 #[inline(always)]
 pub(crate) fn sampling_scope() -> PhaseGuard {
     PhaseGuard
 }
 
-#[cfg(all(test, feature = "bench-instrumentation"))]
+#[cfg(all(test, feature = "bench-instrumentation", feature = "bench-experiments"))]
 mod tests {
     use super::*;
 

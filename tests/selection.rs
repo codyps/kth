@@ -349,8 +349,20 @@ fn strings_match_sorting_across_cutoffs_and_patterns() {
     }
 }
 
+#[cfg(feature = "bench-experiments")]
 #[test]
 fn guarded_samples_and_blocks_preserve_contract_across_thresholds() {
+    fn experimental<T: Ord + Clone + std::fmt::Debug>(input: &[T], k: usize) {
+        let mut expected = input.to_vec();
+        expected.sort_unstable();
+        let mut actual = input.to_vec();
+        kth::benchmark_adaptive_partition_by_kth(&mut actual, k);
+        assert_eq!(actual[k], expected[k]);
+        assert!(actual[..k].iter().all(|v| v <= &actual[k]));
+        assert!(actual[k + 1..].iter().all(|v| v >= &actual[k]));
+        actual.sort_unstable();
+        assert_eq!(actual, expected);
+    }
     let mut rng = StdRng::seed_from_u64(20261029);
     // Include the activation threshold, the 1024-sample cap, and irregular tails.
     for n in [16383usize, 16384, 16385, 65537, 262143, 262144, 262145] {
@@ -372,8 +384,8 @@ fn guarded_samples_and_blocks_preserve_contract_across_thresholds() {
                 .collect();
             let wide: Vec<_> = input.iter().map(|v| [*v; 8]).collect();
             for k in [1, n / 100, n / 8, n / 2, n * 99 / 100, n - 2] {
-                check(&input, k);
-                check(&wide, k);
+                experimental(&input, k);
+                experimental(&wide, k);
             }
         }
     }

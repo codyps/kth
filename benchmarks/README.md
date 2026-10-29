@@ -134,6 +134,11 @@ by at least 26.9% in that run. This does not establish the same margin for tiny
 inputs, min/max ranks, arbitrary types, or other machines. The standard report
 also includes the separate typed series on byte partitions and byte medians.
 
+A later quiet repeat put 41 of those 42 byte cases at least 20% ahead of `std`.
+The 1,024-element dominant-value median took 671 ns versus 803 ns (16.4%
+faster). These are measured cohorts, not a portable minimum-speed guarantee;
+the histogram path performs the same work for interior ranks of one input.
+
 The selector variants isolate the optimization experiments:
 
 Additional benchmark-only sampling, endgame, partition, duplicate, and numeric
@@ -155,24 +160,15 @@ and run through `benchmarks/tests/cyclic.rs`.
 Rank-aware selection samples the centers of nine regions for tail ranks. In the
 outer eighth it uses the median of three minima/maxima; in the outer 1/84 it uses
 the whole sample's minimum/maximum. Center ranks retain the previous pivot rule,
-including the larger string samples. At active lengths of at least 16,384,
-a 16-position disorder probe can enable a jittered stratified sample of up to
-1,024 values. It rejects repeated probe values equal to the pivot. Growth keeps
-the existing tail pivots for elements up to 32 bytes; larger records can grow
-samples for tail ranks too. Calls with repeated entry samples retain the fixed
-policy, as do 17–32-byte elements. Arrays below the threshold keep the inlined
-fixed driver; the adaptive large-input driver is outlined to isolate its loops
-from caller code generation.
-For elements larger than 32 bytes, the same disorder gate can enable a buffered
-128-element partition; ordered inputs keep Hoare partitioning. Swap-based
-partitioning remains the default for smaller elements; cyclic remains experimental.
+including the larger string samples. The choice is recomputed after each
+partition. These are heuristics protected by the unchanged `4 * original_len`
+work budget and deterministic fallback. No allocation or randomness was added.
 
-The choice is recomputed after each partition. These are heuristics protected
-by the unchanged `4 * original_len` work budget and deterministic fallback.
-The growing sample is selected in place; scratch offset buffers use bounded
-stack space. No allocation or external random source was added. See
-[Selection experiments](EXPERIMENTS.md#adaptive-sampling-experiments) for the
-isolated candidates and [hardware counters](EXPERIMENTS.md#hardware-counter-findings).
+The `isolated` benchmark variant tests growing samples and buffered large-record
+partitions behind the opt-in `bench-experiments` library feature (enabled by the
+benchmark crate's `experiments` feature). It does not change the default selector.
+See [Selection experiments](EXPERIMENTS.md#isolated-guarded-selector) for the
+adoption decision and profiling findings.
 
 On repeated samples, the three-way partition skips an already-greater suffix
 when the active rank is in the lower eighth and elements are at most eight

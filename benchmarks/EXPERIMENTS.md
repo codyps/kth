@@ -273,28 +273,33 @@ sampled call-stack/source-line attribution from this environment; do not interpr
 these global counters as a profile of individual functions. The profiling driver
 and record/report commands above remain usable on a host with matching mounts.
 
-## Guarded production policy
+## Isolated guarded selector
 
-The public selector uses a conservative refinement of `guarded`: samples can
-grow at active lengths >= 16,384 if the fixed sample is distinct and the disorder
-probe contains no value equal to the pivot. Elements up to 32 bytes retain the
-existing outer-eighth tail pivots; the 17–32-byte recursive sampler is preserved
-for every rank. Calls with repeated entry samples keep the fixed driver. Larger
-records can grow tail samples too. Disordered records
-larger than 32 bytes can use buffered partitioning; other inputs keep their
-existing partition kernel. Cyclic remains benchmark-only.
+`isolated` exposes the conservative guarded selector through the opt-in
+`bench-experiments` library feature. The benchmark crate's `experiments` feature
+enables it automatically. Default builds retain the established public selector.
 
-Rejecting equal probes avoids the extra passes observed on few-unique borrowed
-strings in the first candidate. Sampling decisions are outlined: placing those
-checks in the hot scalar driver caused a reproducible 25% slowdown in ordered
-u64 cases in the direct-call harness, despite little difference in the separate
-function-pointer profiling driver. The adaptive large driver is outlined, while calls below its threshold, with
-repeated entry samples, or with 17–32-byte values keep the inlined fixed driver.
-This isolates the adaptive loops while preserving established duplicate paths.
-Recursive sample selection is counted as sampling work in instrumented builds.
-The four-times-input budget bounds outer partition work, and sample selection
-has its own bounded fallback. The API remains allocation-free and uses safe
-swaps throughout these added kernels.
+At active lengths >= 16,384, distinct samples and a disorder probe with no
+pivot-equal values can enable growing samples. Elements up to 32 bytes retain
+the outer-eighth entry pivots, and 17–32-byte values retain recursive sampling.
+Predictable or repeated entry samples also take the fixed path. Larger records
+can use 128-element buffered partitions. Added kernels use safe swaps, bounded
+stack space, and no allocation; the four-times-input outer budget and bounded
+sample selection remain. Cyclic stays benchmark-only.
+
+The study found strong random-record gains, but size-dependent regressions
+when trying to promote this policy. Moving checks out of a scalar loop fixed
+some losses, while other driver refactors changed 16/17-byte and duplicate-heavy
+timings substantially. Logical work and elapsed time did not always move together.
+The evidence does not support a new generic default. Keeping the experiment
+opt-in lets subsequent work investigate code generation and cache behavior
+without changing the production call graph.
+
+The fixed selector retains its original body and annotations. Feature-only
+wrappers share its safe kernels with the experiment. Instrumented recursive
+sample selection is counted as sampling work. `reset-only` profiling runs help
+separate buffer-reset costs from selection in global hardware counters; sampled
+source-line profiles remain unavailable in this executor.
 
 ## Verifying weak duplicate hints
 
@@ -312,7 +317,7 @@ outside the outer eighths. Every variant retains the existing work budget.
 | `verified8`, `verified32` | The same verification with 8 or 32 strata |
 
 Compare the combined variants with `verified-control`; the public `kth` series
-also shows the current entry-dispatch policy. These are benchmark-only variants,
+shows the unchanged default; `isolated` exposes the guarded entry-dispatch experiment. These are benchmark-only variants,
 not production dispatch changes.
 
 A short 1,128-row screen of the first three variants covered 188 groups, with

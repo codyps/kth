@@ -32,6 +32,8 @@ extern crate std;
 pub mod instrumentation;
 
 mod select;
+#[cfg(feature = "bench-experiments")]
+mod select_adaptive;
 mod select_u8;
 
 /// Add k-th order element operations to slices.
@@ -65,8 +67,7 @@ impl<T: Ord> SliceExtKth for [T] {
 /// The k-th element can then be read from `self[pivot_order]`, if desired.
 ///
 /// Uses rank-aware sampled pivots with a deterministic fallback for O(n) worst-case time,
-/// without allocating. Large disordered slices use growing samples; large elements
-/// can use two fixed 128-entry offset buffers on the stack for partitioning.
+/// without allocating.
 ///
 /// # Panics
 ///
@@ -116,3 +117,10 @@ pub fn partition_u8_by_kth(s: &mut [u8], pivot_order: usize) {
 /// Internal module, public for testing
 #[doc(hidden)]
 pub mod quickselect;
+
+/// Opt-in guarded selector for benchmark experiments; not the default policy.
+#[doc(hidden)]
+#[cfg(feature = "bench-experiments")]
+pub fn benchmark_adaptive_partition_by_kth<T: Ord>(s: &mut [T], k: usize) {
+    select_adaptive::select(s, k)
+}

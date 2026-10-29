@@ -124,11 +124,12 @@ fn nested_phases_restore_on_unwind_and_counters_are_thread_local() {
     assert_eq!(instrumentation::snapshot().comparisons, 0);
 }
 
+#[cfg(feature = "bench-experiments")]
 #[test]
 fn repeated_entry_probe_assigns_every_comparison_to_a_phase() {
     instrumentation::reset();
     let mut values = vec![Counted(7); 65536];
-    kth::partition_by_kth(&mut values, 32768);
+    kth::benchmark_adaptive_partition_by_kth(&mut values, 32768);
     let counts = instrumentation::snapshot();
     assert_eq!(
         counts.comparisons,
