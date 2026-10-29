@@ -24,6 +24,8 @@ mod enabled {
         pub partition_passes: u64,
         pub small_slice_dispatches: u64,
         pub budget_fallbacks: u64,
+        /// Positive when scan/movement totals exclude an opaque library sort.
+        pub opaque_sort_calls: u64,
     }
 
     std::thread_local! {
@@ -119,6 +121,12 @@ pub fn swap<T>(a: &mut [T], i: usize, j: usize) {
 pub fn partition_pass() {
     #[cfg(feature = "bench-instrumentation")]
     enabled::update(|c| c.partition_passes += 1);
+}
+
+#[inline(always)]
+pub fn opaque_sort() {
+    #[cfg(feature = "bench-instrumentation")]
+    enabled::update(|c| c.opaque_sort_calls += 1);
 }
 
 #[inline(always)]

@@ -239,6 +239,19 @@ After changing the selector, repeat the command with `--baseline before-strings`
 in place of `--save-baseline before-strings`. Keep the input sizes, sampling flags,
 compiler, and machine the same for both runs.
 
+For small-slice changes, include lengths around the tiny-sort and small-selection
+cutoffs, plus larger inputs that exercise small tails after partitioning:
+
+```sh
+KTH_BENCH_INPUTS=16 KTH_BENCH_RANKS=median KTH_BENCH_TYPES=u8,u64,String,str,64-byte KTH_BENCH_SIZES=8,16,24,32,48,64,65,128,1024,8192,65536 cargo bench --manifest-path benchmarks/Cargo.toml --bench selection -- '^selection/(u(8|64)/(random|sorted|reverse|sawtooth|equal)|String/(random|prefix256|few-unique)|str/(random|few-unique)|64-byte/random)/median/kth/' --sample-size 60 --warm-up-time 0.1 --measurement-time 0.5 --nresamples 10000 --save-baseline before-small --noplot
+```
+
+Run this on the unchanged revision first, then use `--baseline before-small` on
+the candidate. Preserve the same target directory across revisions so Criterion
+can find its saved measurements. The sixteen seeded inputs per random case and
+the structured cases help distinguish general improvements from one favorable
+input. The short sampling settings above are for local comparisons; confirm
+small differences with longer runs.
 
 ## Rank, dispatch, and cache diagnostics
 
@@ -315,7 +328,7 @@ Counters have explicit algorithmic definitions:
   element size and alignment; wrapping can disable library type specializations,
   so these counts describe the instrumented generic path.
 - **Sampling / partition / deterministic comparisons** separate sampled-pivot
-  work, partition/extreme scans, and the original deterministic selector. The last
+  work, partition/extreme scans and tiny-sort comparisons, and the original deterministic selector. The last
   category includes both small-slice dispatches and budget-exhaustion fallbacks.
 - **Elements scanned** count partition/extreme-scan visits, including revisits in
   Hoare partitioning and visits to groups in deterministic pivot construction.
@@ -329,7 +342,12 @@ Counters have explicit algorithmic definitions:
 
 Comparisons are available for `original`, `swap`, `cyclic`, `kth`, and `std`.
 Internal scan/movement/dispatch counts are available for the first four; unavailable
-`std` fields are blank in CSV and null in JSON. Counters are thread-local and
+`std` fields are blank in CSV and null in JSON. When kth uses the library's
+sort for a tiny slice, `opaque_sort_calls` records those calls. Comparison phases
+and dispatch counts stay available, while the scan/movement totals and their
+normalized rates are blank/null because the sort's internals cannot be counted.
+The diagnostic API's raw totals exclude those opaque operations.
+Counters are thread-local and
 require the opt-in `bench-instrumentation` feature in kth (exposed as
 `instrumentation` by the benchmark crate). Ordinary builds remain `no_std`,
 and counter hooks compile away with the feature disabled. The timing harness

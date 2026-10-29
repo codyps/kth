@@ -48,13 +48,38 @@ fn small_slice_dispatch_is_distinct_from_budget_exhaustion() {
     kth::partition_by_kth(&mut values, 1);
     let counts = instrumentation::snapshot();
     assert_eq!(values[1].0, 2);
-    assert_eq!(counts.comparisons, 2);
-    assert_eq!(counts.fallback_comparisons, 2);
-    assert_eq!(counts.elements_scanned, 2);
-    assert_eq!(counts.bytes_moved, 9 * 8);
-    assert_eq!(counts.partition_passes, 1);
+    assert!(counts.comparisons > 0);
+    assert_eq!(counts.partition_comparisons, counts.comparisons);
+    assert_eq!(counts.fallback_comparisons, 0);
+    assert_eq!(counts.opaque_sort_calls, 1);
+    // These partial totals exclude the opaque library sort. The CSV exporter
+    // marks scan/movement fields unavailable when opaque_sort_calls is nonzero.
+    assert_eq!(counts.elements_scanned, 0);
+    assert_eq!(counts.bytes_moved, 0);
+    assert_eq!(counts.partition_passes, 0);
     assert_eq!(counts.small_slice_dispatches, 1);
     assert_eq!(counts.budget_fallbacks, 0);
+}
+
+#[test]
+fn small_selector_assigns_all_comparisons_to_phases() {
+    for n in [16, 24, 64] {
+        instrumentation::reset();
+        let mut values: Vec<_> = (0..n as u64).map(Counted).collect();
+        kth::partition_by_kth(&mut values, n / 2);
+        let counts = instrumentation::snapshot();
+        assert_eq!(
+            counts.comparisons,
+            counts.sampling_comparisons
+                + counts.partition_comparisons
+                + counts.fallback_comparisons
+        );
+        assert_eq!(counts.small_slice_dispatches, 1);
+        assert_eq!(counts.budget_fallbacks, 0);
+        assert!(counts.elements_scanned > 0);
+        assert!(counts.bytes_moved > 0);
+        assert_eq!(counts.opaque_sort_calls, 0);
+    }
 }
 
 #[test]

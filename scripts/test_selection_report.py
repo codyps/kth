@@ -74,6 +74,29 @@ class SelectionReportTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unavailable"):
             report.merge_counts(report.load_timings(self.root), self.counts)
 
+    def test_opaque_sort_keeps_unknown_movement_and_scans_unavailable(self):
+        self.raw_counts[0]["opaque_sort_calls"] = 1
+        self.raw_counts[1]["opaque_sort_calls"] = 0
+        self.raw_counts[0]["elements_scanned"] = ""
+        self.raw_counts[0]["bytes_moved"] = ""
+        self.write_counts()
+        row = report.merge_counts(report.load_timings(self.root), self.counts)[0]
+        self.assertEqual(row["opaque_sort_calls"], 1)
+        self.assertEqual(row["comparisons"], 260)
+        self.assertIsNone(row["scans_per_element"])
+        self.assertIsNone(row["bytes_moved_per_element"])
+        self.assertEqual(row["budget_fallback_rate"], 0)
+        self.raw_counts[0]["bytes_moved"] = 0
+        self.write_counts()
+        with self.assertRaisesRegex(ValueError, "unavailable"):
+            report.merge_counts(report.load_timings(self.root), self.counts)
+
+    def test_missing_counts_require_an_opaque_sort_marker(self):
+        self.raw_counts[0]["elements_scanned"] = ""
+        self.write_counts()
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            report.merge_counts(report.load_timings(self.root), self.counts)
+
     def test_measure_keeps_counters_out_of_timing_build(self):
         timings = report.load_timings(self.root)
         settings = {"KTH_BENCH_PROFILE": "thresholds", "KTH_BENCH_SIZES": "65"}
