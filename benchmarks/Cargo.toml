@@ -7,7 +7,7 @@ autobenches = false
 
 [features]
 instrumentation = ["kth/bench-instrumentation"]
-experiments = []
+experiments = ["kth/bench-experiments"]
 # Optional C++ AVX-512 reference; requires KTH_X86_SIMD_SOURCE and g++.
 native-simd = ["experiments"]
 

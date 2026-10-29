@@ -82,6 +82,7 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                 "fr-sample",
                 "fr-sample-block",
                 "network16",
+                "isolated",
                 "adaptive-control",
                 "stratified-mid",
                 "adaptive-block",
@@ -160,6 +161,8 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                         "fr-sample-block" => experiments::fr_sample_block(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "network16" => experiments::network16(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "isolated" => kth::benchmark_adaptive_partition_by_kth(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "adaptive-control" => adaptive::adaptive_control(&mut values, k),
                         #[cfg(feature = "experiments")]
