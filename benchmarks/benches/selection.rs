@@ -1,8 +1,8 @@
 //! Compare the public selector with its original algorithm and Rust's selector.
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
-use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::hint::black_box;
 
+mod inputs;
 mod sizes;
 
 fn original<T: Ord>(values: &mut [T], k: usize) {
@@ -58,10 +58,7 @@ fn bench<T: Ord + Clone + std::fmt::Debug>(
 
 fn selections(c: &mut Criterion) {
     for n in sizes::sizes() {
-        let mut rng = StdRng::seed_from_u64(42);
-        let random: Vec<Vec<u64>> = (0..16)
-            .map(|_| (0..n).map(|_| rng.random()).collect())
-            .collect();
+        let random = inputs::random_bank(n);
         let random_bytes: Vec<Vec<u8>> = random
             .iter()
             .map(|v| v.iter().map(|x| *x as u8).collect())
@@ -75,15 +72,20 @@ fn selections(c: &mut Criterion) {
             bench(c, "u64/random", &random, rank, k);
             bench(c, "u8/random", &random_bytes, rank, k);
         }
-        let words: Vec<Vec<String>> = random
-            .iter()
-            .map(|v| v.iter().map(|x| format!("{x:016x}")).collect())
-            .collect();
-        bench(c, "String/random", &words, "median", n / 2);
-        let wide: Vec<Vec<[u64; 8]>> = random
-            .iter()
-            .map(|v| v.iter().map(|x| [*x; 8]).collect())
-            .collect();
+        for case in inputs::string_cases(true) {
+            let words = inputs::strings(case, &random);
+            bench(c, &format!("String/{case}"), &words, "median", n / 2);
+            let borrowed: Vec<Vec<&str>> = words
+                .iter()
+                .map(|v| v.iter().map(String::as_str).collect())
+                .collect();
+            bench(c, &format!("str/{case}"), &borrowed, "median", n / 2);
+            if case == "random" {
+                bench(c, "String/random", &words, "p01", n / 100);
+                bench(c, "str/random", &borrowed, "p01", n / 100);
+            }
+        }
+        let wide = inputs::wide(&random);
         bench(c, "64-byte/random", &wide, "median", n / 2);
         for (case, values) in [
             ("sorted", (0..n as u64).collect::<Vec<_>>()),

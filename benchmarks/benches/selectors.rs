@@ -1,5 +1,5 @@
 // Expand each adapter at the call site so tiny inputs do not measure indirect calls.
-macro_rules! for_each {
+macro_rules! for_each_generic {
     ($register:ident, $values:ident, $index:ident) => {
         $register!("kth", $values, $index, {
             kth::partition_by_kth($values, $index);
@@ -16,9 +16,6 @@ macro_rules! for_each {
         $register!("adqselect", $values, $index, {
             adqselect::nth_element($values, $index, &mut Ord::cmp);
         });
-        $register!("tpt-simd-sort", $values, $index, {
-            tpt_simd_sort::select_nth($values, $index);
-        });
         $register!("turboselect", $values, $index, {
             turboselect::select_nth_unstable($values, $index);
         });
@@ -31,4 +28,14 @@ macro_rules! for_each {
     };
 }
 
+macro_rules! for_each {
+    ($register:ident, $values:ident, $index:ident) => {
+        $crate::selectors::for_each_generic!($register, $values, $index);
+        $register!("tpt-simd-sort", $values, $index, {
+            tpt_simd_sort::select_nth($values, $index);
+        });
+    };
+}
+
 pub(crate) use for_each;
+pub(crate) use for_each_generic;

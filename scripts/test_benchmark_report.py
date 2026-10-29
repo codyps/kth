@@ -33,7 +33,7 @@ class CriterionResultsTest(unittest.TestCase):
 
     def test_loads_complete_unified_run(self):
         rows = report.load_results(self.raw, self.sizes)
-        self.assertEqual(len(rows), 168)
+        self.assertEqual(len(rows), 322)
         baselines = [r for r in rows if r["algorithm"] == "kth" and r["case"] == "random-u8"]
         self.assertEqual({r["suite"] for r in baselines}, {"partition", "scaling-partition"})
         self.assertEqual(rows[0]["mean_ns"], 2000.0)
@@ -59,9 +59,31 @@ class CriterionResultsTest(unittest.TestCase):
     def test_all_partition_cases_use_the_same_selectors(self):
         rows = report.load_results(self.raw, self.sizes)
         for suite in ("partition", "scaling-partition"):
-            for case in report.SCALING_CASES:
+            cases = report.CASES if suite == "partition" else report.SCALING_CASES
+            for case in cases:
                 self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == case},
-                                 set(report.PARTITION_ALGORITHMS))
+                                 set(report.partition_algorithms(case)))
+
+    def test_report_requires_owned_and_borrowed_string_comparisons(self):
+        keys = report.expected_keys(self.sizes)
+        for kind in ("string", "str"):
+            for case in ("random", "prefix64", "prefix256", "few-unique"):
+                for n in self.sizes:
+                    for algorithm in ("kth", "std", "order-stat", "pdqselect", "adqselect", "turboselect", "sort", "sort_unstable"):
+                        self.assertIn(("scaling-partition", f"{kind}-{case}", algorithm, n), keys)
+                    copy_only = ("scaling-partition", f"{kind}-{case}", "tpt-simd-sort", n)
+                    self.assertEqual(copy_only in keys, kind == "str")
+        for n in self.sizes:
+            for algorithm in report.PARTITION_ALGORITHMS:
+                self.assertIn(("scaling-partition", "random-wide64", algorithm, n), keys)
+        self.assertEqual(len(report.expected_keys(report.DEFAULT_SIZES)), 987)
+
+    def test_missing_string_series_cannot_be_silently_omitted(self):
+        path = next(p for p in self.paths if json.loads((p / "benchmark.json").read_text())["full_id"] ==
+                    "scaling-partition/string-prefix256/kth/64")
+        (path / "benchmark.json").unlink()
+        with self.assertRaisesRegex(ValueError, "Missing benchmark results.*string-prefix256"):
+            report.load_results(self.raw, self.sizes)
 
     def test_report_runs_one_crate_and_one_harness(self):
         from unittest.mock import patch

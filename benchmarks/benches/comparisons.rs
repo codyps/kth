@@ -2,6 +2,7 @@ use criterion::criterion_main;
 
 mod cases;
 mod fixed;
+mod inputs;
 mod scaling;
 mod selectors;
 mod sizes;

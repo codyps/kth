@@ -38,22 +38,29 @@ pub fn validate_partition<T: Ord + Clone + core::fmt::Debug>(
     assert_eq!(actual, expected);
 }
 
-pub fn bench_partition<T: Ord + Clone + core::fmt::Debug>(
+pub fn bench_partition_inputs<T: Ord + Clone + core::fmt::Debug>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     algorithm: &str,
-    input: &[T],
+    inputs: &[impl AsRef<[T]>],
     scaling: bool,
     select: impl Fn(&mut [T], usize),
 ) {
-    validate_partition(input, &select);
+    for input in inputs {
+        validate_partition(input.as_ref(), &select);
+    }
     let id = if scaling {
-        BenchmarkId::new(algorithm, input.len())
+        BenchmarkId::new(algorithm, inputs[0].as_ref().len())
     } else {
         BenchmarkId::from_parameter(algorithm)
     };
     group.bench_function(id, |b| {
+        let mut next = 0;
         b.iter_batched_ref(
-            || input.to_vec(),
+            || {
+                let values = inputs[next % inputs.len()].as_ref().to_vec();
+                next += 1;
+                values
+            },
             |v| {
                 let i = v.len() / 2;
                 select(v, i);
@@ -93,15 +100,39 @@ pub fn partitions<T: Ord + Copy + core::fmt::Debug>(
     input: &[T],
     scaling: bool,
 ) {
+    partition_inputs(group, &[input], scaling);
+}
+
+pub fn partition_inputs<T: Ord + Copy + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    inputs: &[impl AsRef<[T]>],
+    scaling: bool,
+) {
     macro_rules! register {
         ($name:literal, $values:ident, $index:ident, $select:block) => {
-            bench_partition(group, $name, input, scaling, |$values, $index| {
+            bench_partition_inputs(group, $name, inputs, scaling, |$values, $index| {
                 let _ = $index;
                 $select
             });
         };
     }
     super::selectors::for_each!(register, values, index);
+}
+
+pub fn owned_partitions<T: Ord + Clone + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    inputs: &[impl AsRef<[T]>],
+    scaling: bool,
+) {
+    macro_rules! register {
+        ($name:literal, $values:ident, $index:ident, $select:block) => {
+            bench_partition_inputs(group, $name, inputs, scaling, |$values, $index| {
+                let _ = $index;
+                $select
+            });
+        };
+    }
+    super::selectors::for_each_generic!(register, values, index);
 }
 
 pub fn medians<T: Ord + Copy + core::fmt::Debug>(
