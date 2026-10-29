@@ -83,13 +83,20 @@ def merge_counts(timings, path):
             n, calls = row["n"], row["calls"]
             if n <= 0 or calls <= 0 or not 0 <= row["k"] < n or row["array_bytes"] != n * row["element_bytes"]:
                 raise ValueError(f"Invalid workload dimensions: {name}")
+            opaque = int(raw.get("opaque_sort_calls") or 0)
+            if not 0 <= opaque <= calls or (opaque and row["algorithm"] != "kth"):
+                raise ValueError(f"Invalid opaque sort count: {name}")
+            row["opaque_sort_calls"] = opaque
             if row["algorithm"] == "std":
                 if any(row[key] is not None for key in INTERNAL) or raw["budget_fallback_rate"]:
                     raise ValueError("std internal counters must be unavailable")
-            elif any(row[key] is None for key in INTERNAL):
-                raise ValueError(f"Missing internal counters: {name}")
-            elif sum(row[key] for key in INTERNAL[:3]) != row["comparisons"]:
-                raise ValueError(f"Comparison phases do not sum to total: {name}")
+            else:
+                missing = {key for key in INTERNAL if row[key] is None}
+                expected = {"elements_scanned", "bytes_moved"} if opaque else set()
+                if missing != expected:
+                    raise ValueError(f"Missing or unavailable internal counters: {name}")
+                if sum(row[key] for key in INTERNAL[:3]) != row["comparisons"]:
+                    raise ValueError(f"Comparison phases do not sum to total: {name}")
             for metric, total in (("comparisons_per_element", "comparisons"),
                                   ("scans_per_element", "elements_scanned"),
                                   ("bytes_moved_per_element", "bytes_moved")):
@@ -201,7 +208,7 @@ def render(report, output):
                 '<p>Choose timing or a counter metric in each chart. Counts come from a separate untimed run on the same input bank. '
                 'Scan visits include revisits and deterministic pivot-group passes; sampled-pivot reads are represented by sampling comparisons. '
                 'Logical bytes count value transfers, including temporaries and self-copies, rather than hardware traffic. '
-                'String moves count the value header, excluding its heap payload. Rust selector internals are unavailable. '
+                'String moves count the value header, excluding its heap payload. Rust selector internals and scan/movement counts for opaque tiny sorts are unavailable. '
                 'Cloning and correctness validation are excluded. Inputs are freshly cloned, so cache plots describe warm inputs, not a forced cold cache.</p>'
                 '<p><a href="results.json">Timings, counts, and provenance</a> · <a href="counts.csv">Raw counts (CSV)</a></p>' +
                 ''.join(sections) + '<details><summary>Run details</summary><pre>' +

@@ -166,13 +166,15 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                     bytes_moved,
                     partition_passes,
                     small_slice_dispatches,
-                    budget_fallbacks
+                    budget_fallbacks,
+                    opaque_sort_calls
                 );
                 fallback_calls += usize::from(counts.budget_fallbacks > 0);
             }
             let calls = inputs.len();
             let elements = calls as f64 * n as f64;
             // std's internals are not instrumented; empty cells mean unavailable, never zero.
+            let opaque = sum.opaque_sort_calls > 0;
             let internal = if algorithm == "std" {
                 vec![String::new(); 8].join(",")
             } else {
@@ -181,8 +183,16 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                     sum.sampling_comparisons,
                     sum.partition_comparisons,
                     sum.fallback_comparisons,
-                    sum.elements_scanned,
-                    sum.bytes_moved,
+                    if opaque {
+                        String::new()
+                    } else {
+                        sum.elements_scanned.to_string()
+                    },
+                    if opaque {
+                        String::new()
+                    } else {
+                        sum.bytes_moved.to_string()
+                    },
                     sum.partition_passes,
                     sum.small_slice_dispatches,
                     sum.budget_fallbacks
@@ -190,6 +200,8 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
             };
             let derived = if algorithm == "std" {
                 ",,".into()
+            } else if opaque {
+                format!(",,{:.6}", fallback_calls as f64 / calls as f64)
             } else {
                 format!(
                     "{:.6},{:.6},{:.6}",
@@ -200,11 +212,12 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
             };
             writeln!(
                 self.output,
-                "{id},{k},{},{},{calls},{},{internal},{:.6},{derived}",
+                "{id},{k},{},{},{calls},{},{internal},{:.6},{derived},{}",
                 size_of::<T>(),
                 n * size_of::<T>(),
                 sum.comparisons,
-                sum.comparisons as f64 / elements
+                sum.comparisons as f64 / elements,
+                sum.opaque_sort_calls
             )
             .unwrap();
             self.rows += 1;
@@ -228,7 +241,7 @@ fn main() {
         ids,
         rows: 0,
     };
-    writeln!(counter.output, "benchmark,k,element_bytes,array_bytes,calls,comparisons,sampling_comparisons,partition_comparisons,fallback_comparisons,elements_scanned,bytes_moved,partition_passes,small_slice_dispatches,budget_fallbacks,comparisons_per_element,scans_per_element,bytes_moved_per_element,budget_fallback_rate").unwrap();
+    writeln!(counter.output, "benchmark,k,element_bytes,array_bytes,calls,comparisons,sampling_comparisons,partition_comparisons,fallback_comparisons,elements_scanned,bytes_moved,partition_passes,small_slice_dispatches,budget_fallbacks,comparisons_per_element,scans_per_element,bytes_moved_per_element,budget_fallback_rate,opaque_sort_calls").unwrap();
     selection_cases::visit(&config, &mut counter);
     assert!(
         counter.rows > 0,

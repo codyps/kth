@@ -12,6 +12,13 @@ pub(crate) fn select<T: Ord>(a: &mut [T], k: usize) {
     if size_of::<T>() == 0 {
         return;
     }
+    // Optimize small inputs independently of the existing large-input tails.
+    // Keep the original single-scan paths for the minimum and maximum.
+    if a.len() <= 64 && k != 0 && k != a.len() - 1 {
+        instrumentation::dispatch(true);
+        select_small(a, k);
+        return;
+    }
     select_with_budget(a, k, a.len().saturating_mul(4));
 }
 
@@ -79,6 +86,95 @@ fn select_with_budget<T: Ord>(mut a: &mut [T], mut k: usize, mut budget: usize) 
         } else {
             hoare_partition(a, pivot)
         };
+        if p == k {
+            return;
+        }
+        if p > k {
+            a = &mut a[..p];
+        } else {
+            a = &mut a[p + 1..];
+            k -= p + 1;
+        }
+    }
+}
+
+#[inline(always)]
+fn select_small<T: Ord>(mut a: &mut [T], mut k: usize) {
+    let _partition_phase = instrumentation::phase(Phase::Partition);
+    // Even adversarial pivot choices are bounded by this fixed slice length.
+    debug_assert!(a.len() <= 64);
+    let n = a.len();
+    // The original pivot remains competitive for this short scalar range.
+    if size_of::<T>() <= 8 && n > 8 && n <= 16 {
+        let _fallback_phase = instrumentation::phase(Phase::Fallback);
+        quickselect(repeated_step3, a, k);
+        return;
+    }
+    if n > 8 {
+        let sampling_phase = instrumentation::phase(Phase::Sampling);
+        let first_mid_equal = a[0] == a[n / 2];
+        let mid_last_equal = a[n / 2] == a[n - 1];
+        // Two matching samples with a distinct third can bias median-of-three
+        // toward an extreme value. Keep the existing pivot on these inputs.
+        let use_original =
+            first_mid_equal != mid_last_equal || (!first_mid_equal && a[0] == a[n - 1]);
+        drop(sampling_phase);
+        if use_original {
+            let _fallback_phase = instrumentation::phase(Phase::Fallback);
+            quickselect(repeated_step3, a, k);
+            return;
+        }
+    }
+    loop {
+        let n = a.len();
+        if k == 0 {
+            instrumentation::scanned(n - 1);
+            let p = (1..n).fold(0, |p, i| if a[i] < a[p] { i } else { p });
+            instrumentation::swap(a, 0, p);
+            return;
+        }
+        if k == n - 1 {
+            instrumentation::scanned(n - 1);
+            let p = (1..n).fold(0, |p, i| if a[i] > a[p] { i } else { p });
+            instrumentation::swap(a, n - 1, p);
+            return;
+        }
+        // Sort tiny slices of small elements, but avoid fully sorting larger
+        // elements. Below nine elements the repeated-step selector already
+        // uses a simple midpoint pivot.
+        if n <= 8 {
+            if size_of::<T>() <= 8 {
+                instrumentation::opaque_sort();
+                a.sort_unstable();
+            } else {
+                let _fallback_phase = instrumentation::phase(Phase::Fallback);
+                quickselect(repeated_step3, a, k);
+            }
+            return;
+        }
+        let mid = n / 2;
+        // Bias the three-element sample toward the requested rank after
+        // narrowing, instead of always choosing its median.
+        let sampling_phase = instrumentation::phase(Phase::Sampling);
+        let pivot = if k < n / 4 {
+            let p = if a[0] < a[mid] { 0 } else { mid };
+            if a[p] < a[n - 1] {
+                p
+            } else {
+                n - 1
+            }
+        } else if k >= n - n / 4 {
+            let p = if a[0] > a[mid] { 0 } else { mid };
+            if a[p] > a[n - 1] {
+                p
+            } else {
+                n - 1
+            }
+        } else {
+            median3_index(a, 0, mid, n - 1)
+        };
+        drop(sampling_phase);
+        let p = hoare_partition(a, pivot);
         if p == k {
             return;
         }
