@@ -16,12 +16,21 @@ KTH_BENCH_SIZES=16,256,4096,65536 cargo bench --manifest-path benchmarks/Cargo.t
 cargo bench --manifest-path benchmarks/Cargo.toml --bench comparisons -- '^median-only/'
 ```
 
-Every partition workload compares kth, order-stat, pdqselect, adqselect,
+Partition workloads compare kth, order-stat, pdqselect, adqselect,
 tpt-simd-sort, turboselect, and Rust's `select_nth_unstable`, plus stable and
 unstable full-sort baselines. Fixed and scaling cases cover seeded random u8,
 seeded random u64, and zeros with a leading or trailing one. RNG-inclusive u8
 comparisons use the same registry and deliberately include input generation in
 their measurements.
+
+The main comparison report also sweeps owned `String`, borrowed `&str`, and
+64-byte values. Strings cover random hex data, 64-byte and 256-byte common
+prefixes, and seven distinct values. These cases cycle through sixteen seeded
+inputs at each length and share the input generator with the focused suite.
+Owned strings compare all supported selectors and both sort baselines;
+`tpt-simd-sort` is omitted there because it requires `Copy`. Borrowed strings and
+64-byte values include it.
+
 
 Median-retrieval groups compare all nine partition/sort implementations plus
 medians on seeded u8 and u64 data. Odd lengths ensure every implementation returns
@@ -70,7 +79,7 @@ uses results from the same harness and workload.
 
 The default run uses 100 samples, three seconds of warmup, and five seconds of
 measurement per benchmark, sweeping sizes 16, 64, 256, 1,024, 4,096, 16,384, and
-65,536. This produces 448 measurements and takes roughly 60 minutes plus setup
+65,536. This produces 987 measurements and takes roughly 132 minutes plus setup
 and analysis. Use `--sizes 16 256 4096 65536` for a shorter sweep, or add larger
 sizes such as 262144 and 1048576. Median inputs use the next odd length when
 necessary; the charts show the actual length.
@@ -107,3 +116,18 @@ For u8 structured inputs, integer values wrap modulo 256; the random u8 and u64
 inputs share the same underlying seeded stream. Random median cases also include
 owned strings and 64-byte elements to exercise larger, non-`Copy` values and
 element-movement costs.
+
+The string cases also cover 64-byte and 256-byte common prefixes, variable-length
+strings, seven-value inputs, sorted and reversed inputs, and equal values. Each
+case measures both owned `String` values and borrowed `&str` values. Random string
+cases include first-percentile selection as well as the median.
+
+To isolate string comparisons and save measurements for the current revision:
+
+```sh
+KTH_BENCH_SIZES=16,64,1024,8192,65536 cargo bench --manifest-path benchmarks/Cargo.toml --bench selection -- 'selection/(String|str)/[^/]+/(median|p01)/(kth|std)' --save-baseline before-strings
+```
+
+After changing the selector, repeat the command with `--baseline before-strings`
+in place of `--save-baseline before-strings`. Keep the input sizes, sampling flags,
+compiler, and machine the same for both runs.

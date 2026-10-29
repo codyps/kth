@@ -162,55 +162,61 @@ fn zero_sized_out_of_bounds_panics() {
 
 #[test]
 fn comparator_panics_preserve_owned_elements() {
-    struct Item {
-        key: usize,
-        id: usize,
-        calls: Rc<Cell<usize>>,
-        drops: Rc<Cell<usize>>,
+    struct State {
+        calls: Cell<usize>,
+        drops: Cell<usize>,
         panic_at: usize,
     }
-    impl PartialEq for Item {
+    struct Item<const PAD: usize> {
+        _padding: [u8; PAD],
+        key: usize,
+        id: usize,
+        state: Rc<State>,
+    }
+    impl<const PAD: usize> PartialEq for Item<PAD> {
         fn eq(&self, other: &Self) -> bool {
             self.key == other.key
         }
     }
-    impl Eq for Item {}
-    impl Ord for Item {
+    impl<const PAD: usize> Eq for Item<PAD> {}
+    impl<const PAD: usize> Ord for Item<PAD> {
         fn cmp(&self, other: &Self) -> Ordering {
-            let calls = self.calls.get();
-            self.calls.set(calls + 1);
-            assert_ne!(calls, self.panic_at, "intentional comparator panic");
+            let calls = self.state.calls.get();
+            self.state.calls.set(calls + 1);
+            assert_ne!(calls, self.state.panic_at, "intentional comparator panic");
             self.key.cmp(&other.key)
         }
     }
-    impl PartialOrd for Item {
+    impl<const PAD: usize> PartialOrd for Item<PAD> {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
             Some(self.cmp(other))
         }
     }
-    impl Drop for Item {
+    impl<const PAD: usize> Drop for Item<PAD> {
         fn drop(&mut self) {
-            self.drops.set(self.drops.get() + 1);
+            self.state.drops.set(self.state.drops.get() + 1);
         }
     }
-    impl AsRef<Item> for Item {
-        fn as_ref(&self) -> &Item {
+    impl<const PAD: usize> AsRef<Item<PAD>> for Item<PAD> {
+        fn as_ref(&self) -> &Item<PAD> {
             self
         }
     }
-    fn exercise<T: Ord + AsRef<Item>>(wrap: impl Fn(Item) -> T) {
+    fn exercise<T: Ord + AsRef<Item<PAD>>, const PAD: usize>(wrap: impl Fn(Item<PAD>) -> T) {
         for equal in [false, true] {
             for panic_at in [0, 1, 8, 32, 128] {
-                let drops = Rc::new(Cell::new(0));
-                let calls = Rc::new(Cell::new(0));
+                let state = Rc::new(State {
+                    calls: Cell::new(0),
+                    drops: Cell::new(0),
+                    panic_at,
+                });
                 let mut values: Vec<_> = (0..256)
                     .map(|id| {
                         wrap(Item {
+                            _padding: [0; PAD],
                             key: if equal { 0 } else { (id * 37) % 257 },
                             id,
-                            calls: calls.clone(),
-                            drops: drops.clone(),
-                            panic_at,
+                            state: state.clone(),
                         })
                     })
                     .collect();
@@ -221,12 +227,65 @@ fn comparator_panics_preserve_owned_elements() {
                 let mut ids: Vec<_> = values.iter().map(|v| v.as_ref().id).collect();
                 ids.sort_unstable();
                 assert_eq!(ids, (0..256).collect::<Vec<_>>());
-                assert_eq!(drops.get(), 0);
+                assert_eq!(state.drops.get(), 0);
                 drop(values);
-                assert_eq!(drops.get(), 256);
+                assert_eq!(state.drops.get(), 256);
             }
         }
     }
-    exercise(|item| item);
-    exercise(Box::new);
+    exercise::<_, 0>(|item| item);
+    exercise::<_, 128>(|item| item);
+    exercise::<_, 0>(Box::new);
+}
+
+#[test]
+fn strings_match_sorting_across_cutoffs_and_patterns() {
+    let mut rng = StdRng::seed_from_u64(314159);
+    for n in [
+        1, 2, 15, 16, 17, 31, 32, 33, 63, 64, 65, 66, 127, 128, 129, 575, 576, 577, 1024,
+    ] {
+        let random: Vec<_> = (0..n)
+            .map(|i| format!("{:016x}{}", rng.random::<u64>(), "x".repeat(i % 31)))
+            .collect();
+        let prefix: Vec<_> = (0..n)
+            .map(|_| format!("{}{:016x}", "語🙂".repeat(32), rng.random::<u64>()))
+            .collect();
+        let mut sorted = random.clone();
+        sorted.sort_unstable();
+        let mut reverse = sorted.clone();
+        reverse.reverse();
+        let mut almost_sorted = sorted.clone();
+        almost_sorted.swap(0, n - 1);
+        let mut duplicates: Vec<_> = (0..n).map(|i| format!("value {}", i % 7)).collect();
+        duplicates.shuffle(&mut rng);
+        let mut outlier = vec![String::from("aaa"); n];
+        outlier[n - 1] = String::from("bbb");
+        let ranks: Vec<_> = if n <= 129 {
+            (0..n).collect()
+        } else {
+            vec![0, 1, n / 100, n / 4, n / 2, n - 2, n - 1]
+        };
+        for input in [
+            random,
+            prefix,
+            sorted,
+            reverse,
+            almost_sorted,
+            duplicates,
+            outlier,
+            vec![String::from("same"); n],
+        ] {
+            let mut expected = input.clone();
+            expected.sort_unstable();
+            for &k in &ranks {
+                let mut actual = input.clone();
+                partition_by_kth(&mut actual, k);
+                assert_eq!(actual[k], expected[k]);
+                assert!(actual[..k].iter().all(|x| x <= &actual[k]));
+                assert!(actual[k + 1..].iter().all(|x| x >= &actual[k]));
+                actual.sort_unstable();
+                assert_eq!(actual, expected);
+            }
+        }
+    }
 }

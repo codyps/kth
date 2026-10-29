@@ -25,7 +25,7 @@ jobs:
   measure:
     name: Measure and graph
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       RUSTUP_TOOLCHAIN: "1.99.0"
       REPORT_PROFILE: ${{ github.event_name == 'pull_request' && 'quick' || inputs.profile || 'ci' }}

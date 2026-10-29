@@ -44,6 +44,26 @@ SCALING_CASES = {
     "leading-one": "Zeros with a leading one",
     "random-u64": "Seeded random u64",
 }
+STRING_CASES = {
+    "random": "seeded random hex strings",
+    "prefix64": "64-byte common prefix",
+    "prefix256": "256-byte common prefix",
+    "few-unique": "seven distinct strings",
+}
+SCALING_CASES.update({
+    f"{kind}-{case}": f"{label} · {title}"
+    for kind, label in (("string", "Owned String"), ("str", "Borrowed str"))
+    for case, title in STRING_CASES.items()
+})
+SCALING_CASES["random-wide64"] = "Seeded random 64-byte values"
+
+
+def partition_algorithms(case):
+    # tpt-simd-sort requires Copy, which owned String does not implement.
+    return tuple(name for name in PARTITION_ALGORITHMS
+                 if name != "tpt-simd-sort" or not case.startswith("string-"))
+
+
 COLORS = dict(zip(
     (*PARTITION_ALGORITHMS, "medians"),
     ("#2864dc", "#14836c", "#cc493d", "#8255b5", "#9a6324",
@@ -71,7 +91,7 @@ def expected_keys(sizes=()):
     keys |= {("median-only", kind, name, None) for kind in ("u8", "u64")
              for name in MEDIAN_ALGORITHMS}
     keys |= {("scaling-partition", case, name, n) for n in sizes for case in SCALING_CASES
-             for name in PARTITION_ALGORITHMS}
+             for name in partition_algorithms(case)}
     keys |= {("scaling-median", kind, name, n | 1) for n in sizes for kind in ("u8", "u64")
              for name in MEDIAN_ALGORITHMS}
     return keys
@@ -144,6 +164,7 @@ def provenance(profile, raw, sizes):
             "cpu": cpu, "logical_cpus": os.cpu_count(), "git_commit": commit,
             "working_tree_dirty": dirty, "rustflags": os.environ.get("RUSTFLAGS", ""),
             "raw_directory": str(raw), "dependencies": locks,
+            "input_seed": 42, "string_and_wide_input_count": 16,
             "scaling_sizes": sizes, "median_scaling_sizes": sorted({n | 1 for n in sizes}),
             "actions_run_url": (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
                                 f"{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
@@ -207,7 +228,7 @@ def render_scaling(rows, output, short, linear):
             axis.spines[["top", "right"]].set_visible(False)
             axis.legend(loc="upper left", bbox_to_anchor=(0, -0.18), ncol=4, frameon=False, fontsize=9)
             figure.text(0.03, 0.02, f"{label} · lower is faster · shaded bands: 95% confidence intervals\n"
-                        "Identical input per n; cloning and validation excluded. Points are measurements; lines connect them.",
+                        "Matched inputs per n; cloning and validation excluded. Points are measurements; lines connect them.",
                         fontsize=9, color="#465569")
             # Reserve fixed space for titles and the two-row legend on log axes.
             figure.subplots_adjust(left=0.12, right=0.98, top=0.90, bottom=0.28)
@@ -332,6 +353,8 @@ The toolbar exports the current view as SVG; PNG/SVG download links retain the o
 <p>Fixed inputs are identical within each panel; cloning and validation are outside timing.
 Partition charts include full-sort baselines, labeled as such. Median-only charts compare retrieval
 and do not require partitioned output. All libraries run together in one unpublished benchmark crate.
+String and 64-byte scaling cases cycle through sixteen seeded inputs per size.
+Owned String panels omit tpt-simd-sort because it requires Copy; borrowed str panels include it.
 Fixed-case ratios divide mean time by kth's mean in the same panel. Scaling ratios use the selected
 baseline at each input size; below 1× means faster than that baseline.
 Whiskers describe individual means, not uncertainty in the ratios.
