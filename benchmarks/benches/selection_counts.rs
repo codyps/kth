@@ -7,6 +7,10 @@ use std::{
     mem::size_of,
 };
 
+#[cfg(feature = "experiments")]
+#[path = "support/adaptive.rs"]
+mod adaptive;
+
 #[path = "support/cyclic_baseline.rs"]
 mod cyclic_baseline;
 #[cfg(feature = "experiments")]
@@ -78,6 +82,16 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                 "fr-sample",
                 "fr-sample-block",
                 "network16",
+                "adaptive-control",
+                "stratified-mid",
+                "adaptive-block",
+                "stratified-block",
+                "stratified-all",
+                "guarded",
+                "strict-duplicates",
+                "bounded-duplicates",
+                "guarded-cyclic",
+                "combined",
             ],
         ]
         .concat();
@@ -146,6 +160,26 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                         "fr-sample-block" => experiments::fr_sample_block(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "network16" => experiments::network16(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "adaptive-control" => adaptive::adaptive_control(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "stratified-mid" => adaptive::stratified_mid(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "adaptive-block" => adaptive::adaptive_block(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "stratified-block" => adaptive::stratified_block(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "stratified-all" => adaptive::stratified_all(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "guarded" => adaptive::guarded(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "strict-duplicates" => adaptive::strict_duplicates(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "bounded-duplicates" => adaptive::bounded_duplicates(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "guarded-cyclic" => adaptive::guarded_cyclic(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "combined" => adaptive::combined(&mut values, k),
                         _ => unreachable!(),
                     }
                 }

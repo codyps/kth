@@ -2,6 +2,10 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use std::hint::black_box;
 
+#[cfg(feature = "experiments")]
+#[path = "support/adaptive.rs"]
+mod adaptive;
+
 #[path = "support/cyclic_baseline.rs"]
 mod cyclic_baseline;
 #[cfg(feature = "experiments")]
@@ -105,6 +109,16 @@ impl selection_cases::Runner for Timing<'_> {
             register!("fr-sample", experiments::fr_sample);
             register!("fr-sample-block", experiments::fr_sample_block);
             register!("network16", experiments::network16);
+            register!("adaptive-control", adaptive::adaptive_control);
+            register!("stratified-mid", adaptive::stratified_mid);
+            register!("adaptive-block", adaptive::adaptive_block);
+            register!("stratified-block", adaptive::stratified_block);
+            register!("stratified-all", adaptive::stratified_all);
+            register!("guarded", adaptive::guarded);
+            register!("strict-duplicates", adaptive::strict_duplicates);
+            register!("bounded-duplicates", adaptive::bounded_duplicates);
+            register!("guarded-cyclic", adaptive::guarded_cyclic);
+            register!("combined", adaptive::combined);
         }
         group.finish();
     }

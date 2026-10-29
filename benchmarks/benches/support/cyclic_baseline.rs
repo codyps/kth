@@ -110,7 +110,7 @@ fn select_with_budget<T: Ord>(mut a: &mut [T], mut k: usize, mut budget: usize) 
     }
 }
 
-fn partition<T: Ord>(a: &mut [T], pivot: usize) -> usize {
+pub(crate) fn partition<T: Ord>(a: &mut [T], pivot: usize) -> usize {
     instrumentation::partition_pass();
     instrumentation::scanned(a.len() - 1);
     instrumentation::swap(a, 0, pivot);
