@@ -352,3 +352,67 @@ KTH_BENCH_SIZES=4096,65536 KTH_BENCH_TYPES=u8,u64,64-byte KTH_BENCH_RANKS=p01,me
 The archive retains raw samples, commands, source snapshots, and binaries in
 `target/perf-improvements/`. Earlier overlapping-build cohorts are diagnostic
 only; use the separately labeled quiet confirmations for promotion evidence.
+
+## Histogram lanes and ordered pivot hints
+
+The next byte experiments isolate counter width, update dependencies and bin
+reconstruction. `byte-before` freezes the explicit byte implementation at
+`fbb3235`; it delegates small and extreme-rank calls to the public generic API.
+
+| Variant | Change from `byte-before` |
+| --- | --- |
+| `compact16` | Four u16 histograms for lengths <= 65,535 |
+| `lanes8-16` | Eight u16 histograms at the same size limit |
+| `merged32` | Merge four u32 histograms before reconstructing the slice |
+| `bitmap32` | Also use occupancy bitmaps to skip empty bins |
+| `entropy8` | Choose eight narrow lanes only when three separated windows suggest concentrated data |
+
+The blanket eight-lane variant helps dominant values but loses about 19% on
+1,024 sorted bytes in the initial screen. Merged counts and occupancy bitmaps
+also have material losses. Only concentration-based dispatch is promoted to
+`partition_u8_by_kth`: at least 36 of 48 probes from the first, middle and last
+windows must equal the middle byte. This is only a kernel hint; both kernels
+still count every byte. The size bound prevents narrow-counter overflow, and
+eight u16 lanes retain the original four KiB of histogram storage. Small slices,
+min/max ranks and lengths above 65,535 retain the previous paths.
+
+The final byte-only confirmation used sixteen input banks, CPU 8, 40 flat
+samples, 50 ms warmup and 300 ms measurement at five lengths. Selected
+dominant-byte medians:
+
+| Elements | Frozen baseline | Concentration dispatch | Time reduction |
+| ---: | ---: | ---: | ---: |
+| 1,024 | 499 ns | 452 ns | 9.5% |
+| 4,096 | 1,474 ns | 1,020 ns | 30.8% |
+| 16,384 | 5,136 ns | 3,173 ns | 38.2% |
+| 65,535 | 19,924 ns | 11,888 ns | 40.3% |
+
+`perf stat -r 3` on 40,000 dominant-byte median calls at length 16,384 recorded
+996.2 million cycles for `byte-before` and 614.2 million for the promoted kernel
+(38.3% fewer). Retired instructions fell from 2,112.1 to 1,950.5 million (7.7%).
+The profile includes buffer resets and setup; the reduction is consistent with
+shortening dependent histogram updates, rather than just removing instructions.
+
+The generic `before-followup` variant freezes the full public policy at
+`fbb3235`. `ordered-hint` adds an ascending-input hint only for eight-byte
+values, active lengths >= 16,384 and ranks outside the outer eighths. Sixteen
+jittered strata must be strictly ascending, as must first/middle/last values;
+repeated representatives disable the hint. It chooses the requested index as
+pivot but still executes a complete partition under the original work budget.
+Misleading probes therefore cannot bypass correctness or the fallback.
+
+The ordered candidate approximately halves sorted-u64 median time at 16K, 64K
+and 1M elements. A 64K profile also halves retired instructions. It remains a
+benchmark variant: short screens showed large unrelated timing losses, and
+longer confirmations and separately compiled controls differed materially.
+These runs do not establish a sufficiently stable generic default improvement.
+Swap partitioning remains the default, and cyclic partitioning stays experimental.
+
+Raw samples, commands, immutable measured binaries and source snapshots are in
+`target/target20-followup/`; its report distinguishes the rejected combined
+production trial from the final byte-only implementation. Builds and tests did
+not overlap the retained timing runs. All 105 byte groups in the final cohort clear a 20% margin against `std`, but
+the earlier longer byte cohort misses two 1,024-byte groups. The largest final
+loss against the frozen baseline is 11% on 1,024 clustered bytes, where sampling
+adds overhead. Results vary across runs; this is not evidence of a universal
+20% margin. Several generic workloads also remain below the target.

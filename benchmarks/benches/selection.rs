@@ -1,4 +1,10 @@
 //! Compare selection algorithms without operation-count overhead.
+#[cfg(feature = "experiments")]
+#[path = "support/before_followup.rs"]
+mod before_followup;
+#[cfg(feature = "experiments")]
+#[path = "support/ordered_hint.rs"]
+mod ordered_hint;
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use std::hint::black_box;
 
@@ -109,6 +115,8 @@ impl selection_cases::Runner for Timing<'_> {
             register!("fr-sample", experiments::fr_sample);
             register!("fr-sample-block", experiments::fr_sample_block);
             register!("network16", experiments::network16);
+            register!("before-followup", before_followup::select);
+            register!("ordered-hint", ordered_hint::select);
             register!("isolated", kth::benchmark_adaptive_partition_by_kth);
             register!("adaptive-control", adaptive::adaptive_control);
             register!("stratified-mid", adaptive::stratified_mid);

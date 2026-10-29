@@ -1,4 +1,10 @@
 //! Untimed operation counts on the same workload bank as the selection benchmark.
+#[cfg(feature = "experiments")]
+#[path = "support/before_followup.rs"]
+mod before_followup;
+#[cfg(feature = "experiments")]
+#[path = "support/ordered_hint.rs"]
+mod ordered_hint;
 use kth::instrumentation::{self, Counts, Phase};
 use std::{
     cmp::Ordering,
@@ -82,6 +88,8 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                 "fr-sample",
                 "fr-sample-block",
                 "network16",
+                "before-followup",
+                "ordered-hint",
                 "isolated",
                 "adaptive-control",
                 "stratified-mid",
@@ -166,6 +174,10 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                         "fr-sample-block" => experiments::fr_sample_block(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "network16" => experiments::network16(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "before-followup" => before_followup::select(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "ordered-hint" => ordered_hint::select(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "isolated" => kth::benchmark_adaptive_partition_by_kth(&mut values, k),
                         #[cfg(feature = "experiments")]

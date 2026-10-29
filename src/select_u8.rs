@@ -13,7 +13,9 @@ pub(crate) fn select(a: &mut [u8], k: usize) {
         crate::select::select(a, k);
         return;
     }
-    if a.len() <= u32::MAX as usize {
+    if a.len() <= u16::MAX as usize && concentrated(a) {
+        reconstruct_concentrated(a);
+    } else if a.len() <= u32::MAX as usize {
         reconstruct::<u32>(a);
     } else {
         reconstruct::<usize>(a);
@@ -87,8 +89,83 @@ fn reconstruct<C: Counter>(a: &mut [u8]) {
     }
 }
 
+// The four-lane loop is effective for dispersed values. Additional lanes
+// shorten dependent counter-update chains when most input bytes are identical.
+#[inline(never)]
+fn concentrated(a: &[u8]) -> bool {
+    let _phase = instrumentation::phase(Phase::Sampling);
+    instrumentation::scanned(48);
+    let n = a.len();
+    let anchor = a[n / 2];
+    let first = a[..16].iter().filter(|&&v| v == anchor).count();
+    let middle = a[n / 2..n / 2 + 16]
+        .iter()
+        .filter(|&&v| v == anchor)
+        .count();
+    let last = a[n - 16..].iter().filter(|&&v| v == anchor).count();
+    first + middle + last >= 36
+}
+
+#[inline(never)]
+fn reconstruct_concentrated(a: &mut [u8]) {
+    let _phase = instrumentation::phase(Phase::Partition);
+    let n = a.len();
+    debug_assert!(n <= u16::MAX as usize);
+    // Each counter, including the remainder lane, is at most n. Eight u16
+    // lanes occupy the same four KiB as the regular four u32 lanes.
+    let mut counts = [[0u16; 256]; 8];
+    let (chunks, rest) = a.as_chunks::<8>();
+    instrumentation::scanned(n);
+    for chunk in chunks {
+        for (lane, &value) in chunk.iter().enumerate() {
+            counts[lane][value as usize] += 1;
+        }
+    }
+    for &value in rest {
+        counts[0][value as usize] += 1;
+    }
+    let mut remaining = a;
+    for value in 0..256 {
+        let count = counts.iter().map(|lane| lane[value] as usize).sum();
+        if count == n {
+            return;
+        }
+        if count != 0 {
+            let (head, tail) = remaining.split_at_mut(count);
+            head.fill(value as u8);
+            instrumentation::moved::<u8>(count);
+            remaining = tail;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn narrow_lanes_preserve_counts_at_the_limit_and_all_remainders() {
+        for n in (1024..1032).chain(65528..=65535) {
+            for pattern in 0..3 {
+                let mut a: Vec<u8> = (0..n)
+                    .map(|i| match pattern {
+                        0 => 255,
+                        1 => {
+                            if i % 10 == 0 {
+                                i as u8
+                            } else {
+                                5
+                            }
+                        }
+                        _ => i as u8,
+                    })
+                    .collect();
+                let mut expected = a.clone();
+                expected.sort_unstable();
+                super::reconstruct_concentrated(&mut a);
+                assert_eq!(a, expected);
+            }
+        }
+    }
+
     #[test]
     fn wide_histogram_preserves_every_byte_and_remainder() {
         for n in [1024, 1025, 1026, 1027] {
