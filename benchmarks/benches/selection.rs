@@ -119,6 +119,11 @@ impl selection_cases::Runner for Timing<'_> {
             register!("bounded-duplicates", adaptive::bounded_duplicates);
             register!("guarded-cyclic", adaptive::guarded_cyclic);
             register!("combined", adaptive::combined);
+            register!("verified-duplicates", adaptive::verified_duplicates);
+            register!("verified-guarded", adaptive::verified_guarded);
+            register!("verified-control", adaptive::verified_control);
+            register!("verified8", adaptive::verified8);
+            register!("verified32", adaptive::verified32);
         }
         group.finish();
     }

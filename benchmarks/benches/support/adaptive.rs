@@ -56,7 +56,15 @@ fn select_with_budget<T: Ord, const MODE: u8>(mut a: &mut [T], mut k: usize, mut
         budget -= n;
 
         let sampling_phase = instrumentation::phase(Phase::Sampling);
-        let (pivot, repeated) = if MODE == 8 {
+        let (pivot, repeated) = if MODE == 13 {
+            verified_growing_pivot::<T, true, 8>(a, k)
+        } else if MODE == 14 {
+            verified_growing_pivot::<T, true, 32>(a, k)
+        } else if MODE == 11 {
+            verified_growing_pivot::<T, true, 16>(a, k)
+        } else if MODE == 12 {
+            verified_growing_pivot::<T, false, 16>(a, k)
+        } else if MODE == 8 {
             guarded_pivot_impl::<T, false, true>(a, k)
         } else if MODE == 9 {
             guarded_pivot_impl::<T, true, true>(a, k)
@@ -72,6 +80,12 @@ fn select_with_budget<T: Ord, const MODE: u8>(mut a: &mut [T], mut k: usize, mut
         } else {
             choose_pivot(a, k)
         };
+        let repeated = repeated
+            && (MODE != 10
+                || n < 1024
+                || k <= n / 8
+                || n - 1 - k <= n / 8
+                || confirms_repeat::<T, 16>(a, pivot));
         drop(sampling_phase);
         let ancestor_equal =
             (MODE == 7 || MODE == 9) && ancestor.is_some_and(|lower| a[pivot] == *lower);
@@ -116,14 +130,24 @@ fn select_with_budget<T: Ord, const MODE: u8>(mut a: &mut [T], mut k: usize, mut
                 partition(a, pivot)
             }
         } else {
-            let block_min = if MODE == 5 || MODE == 8 || MODE == 9 {
+            let block_min = if MODE == 5 || MODE == 8 || MODE == 9 || MODE >= 11 {
                 16384
             } else {
                 1024
             };
-            if (MODE == 2 || MODE == 3 || MODE == 4 || MODE == 5 || MODE == 8 || MODE == 9)
+            if (MODE == 2
+                || MODE == 3
+                || MODE == 4
+                || MODE == 5
+                || MODE == 8
+                || MODE == 9
+                || MODE >= 11)
                 && n >= block_min
-                && worth_blocking(a, pivot)
+                && if MODE >= 11 {
+                    conservative_disorder(a, pivot)
+                } else {
+                    worth_blocking(a, pivot)
+                }
             {
                 super::experiments::block_partition::<T, 128>(a, pivot)
             } else {
@@ -525,4 +549,89 @@ pub fn guarded_cyclic<T: Ord>(a: &mut [T], k: usize) {
 }
 pub fn combined<T: Ord>(a: &mut [T], k: usize) {
     select::<T, 9>(a, k);
+}
+
+// Verify a weak sample hint against jittered probes, rather than requiring all
+// three representatives to match. A frequent pivot should be seen quickly;
+// accidental equal representatives in high-entropy byte data usually are not.
+#[inline(never)]
+fn confirms_repeat<T: Ord, const PROBES: usize>(a: &[T], pivot: usize) -> bool {
+    let mut state = (a.len() as u64) ^ (pivot as u64).rotate_left(17) ^ 0x13198a2e03707344;
+    let step = a.len() / PROBES;
+    for i in 0..PROBES {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let start = i * step;
+        let width = if i == PROBES - 1 {
+            a.len() - start
+        } else {
+            step
+        };
+        let index = start + ((state >> 32) as usize) % width;
+        if a[index] == a[pivot] {
+            return true;
+        }
+    }
+    false
+}
+
+#[inline(never)]
+fn conservative_disorder<T: Ord>(a: &[T], pivot: usize) -> bool {
+    let step = a.len() / 17;
+    let first = a[step].cmp(&a[pivot]);
+    if first == Ordering::Equal {
+        return false;
+    }
+    let mut last = first == Ordering::Less;
+    let mut changes = 0;
+    for i in 2..=16 {
+        let order = a[i * step].cmp(&a[pivot]);
+        if order == Ordering::Equal {
+            return false;
+        }
+        let next = order == Ordering::Less;
+        changes += usize::from(next != last);
+        last = next;
+    }
+    changes >= 4
+}
+
+#[inline(never)]
+fn verified_growing_pivot<T: Ord, const VERIFY: bool, const PROBES: usize>(
+    a: &mut [T],
+    k: usize,
+) -> (usize, bool) {
+    let (pivot, mut repeated) = choose_pivot(a, k);
+    let n = a.len();
+    if VERIFY && repeated && n >= 1024 && k > n / 8 && n - 1 - k > n / 8 {
+        repeated = confirms_repeat::<T, PROBES>(a, pivot);
+    }
+    if n >= 16384
+        && !(size_of::<T>() > 16 && size_of::<T>() <= 32)
+        && (size_of::<T>() > 32 || (k > n / 8 && n - 1 - k > n / 8))
+        && !repeated
+        && conservative_disorder(a, pivot)
+    {
+        (stratified_pivot::<T, false>(a, k).0, false)
+    } else {
+        (pivot, repeated)
+    }
+}
+
+pub fn verified_duplicates<T: Ord>(a: &mut [T], k: usize) {
+    select::<T, 10>(a, k);
+}
+pub fn verified_guarded<T: Ord>(a: &mut [T], k: usize) {
+    select::<T, 11>(a, k);
+}
+pub fn verified_control<T: Ord>(a: &mut [T], k: usize) {
+    select::<T, 12>(a, k);
+}
+
+pub fn verified8<T: Ord>(a: &mut [T], k: usize) {
+    select::<T, 13>(a, k);
+}
+pub fn verified32<T: Ord>(a: &mut [T], k: usize) {
+    select::<T, 14>(a, k);
 }

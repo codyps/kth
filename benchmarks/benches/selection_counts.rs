@@ -92,6 +92,11 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                 "bounded-duplicates",
                 "guarded-cyclic",
                 "combined",
+                "verified-duplicates",
+                "verified-guarded",
+                "verified-control",
+                "verified8",
+                "verified32",
             ],
         ]
         .concat();
@@ -180,6 +185,16 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                         "guarded-cyclic" => adaptive::guarded_cyclic(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "combined" => adaptive::combined(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "verified-duplicates" => adaptive::verified_duplicates(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "verified-guarded" => adaptive::verified_guarded(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "verified-control" => adaptive::verified_control(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "verified8" => adaptive::verified8(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "verified32" => adaptive::verified32(&mut values, k),
                         _ => unreachable!(),
                     }
                 }
