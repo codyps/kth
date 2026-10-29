@@ -102,6 +102,7 @@ fn main() {
                 .map(|a| a.iter().map(|v| *v as u8).collect())
                 .collect();
             let select = match algorithm {
+                "kth-u8" => kth::partition_u8_by_kth,
                 "counting" => numeric_experiments::counting,
                 "counting4" => numeric_experiments::counting4,
                 "histogram" => numeric_experiments::histogram,

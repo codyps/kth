@@ -112,6 +112,7 @@ fn suite(c: &mut Criterion) {
                 if types.split(',').any(|v| v == "u8") {
                     for (algorithm, select) in [
                         ("kth", kth::partition_by_kth as fn(&mut [u8], usize)),
+                        ("kth-u8", kth::partition_u8_by_kth),
                         ("std", standard),
                         ("histogram", numeric_experiments::histogram),
                         ("histogram4", numeric_experiments::histogram4),

@@ -33,7 +33,7 @@ class CriterionResultsTest(unittest.TestCase):
 
     def test_loads_complete_unified_run(self):
         rows = report.load_results(self.raw, self.sizes)
-        self.assertEqual(len(rows), 322)
+        self.assertEqual(len(rows), 334)
         baselines = [r for r in rows if r["algorithm"] == "kth" and r["case"] == "random-u8"]
         self.assertEqual({r["suite"] for r in baselines}, {"partition", "scaling-partition"})
         self.assertEqual(rows[0]["mean_ns"], 2000.0)
@@ -54,7 +54,8 @@ class CriterionResultsTest(unittest.TestCase):
                  "sort", "sort_unstable", "medians", "turboselect"}
         for suite in ("median-only", "scaling-median"):
             for kind in ("u8", "u64"):
-                self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == kind}, names)
+                expected = names | ({"kth-u8"} if kind == "u8" else set())
+                self.assertEqual({r["algorithm"] for r in rows if r["suite"] == suite and r["case"] == kind}, expected)
 
     def test_all_partition_cases_use_the_same_selectors(self):
         rows = report.load_results(self.raw, self.sizes)
@@ -76,7 +77,7 @@ class CriterionResultsTest(unittest.TestCase):
         for n in self.sizes:
             for algorithm in report.PARTITION_ALGORITHMS:
                 self.assertIn(("scaling-partition", "random-wide64", algorithm, n), keys)
-        self.assertEqual(len(report.expected_keys(report.DEFAULT_SIZES)), 987)
+        self.assertEqual(len(report.expected_keys(report.DEFAULT_SIZES)), 1019)
 
     def test_missing_string_series_cannot_be_silently_omitted(self):
         path = next(p for p in self.paths if json.loads((p / "benchmark.json").read_text())["full_id"] ==

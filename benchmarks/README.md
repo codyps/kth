@@ -120,6 +120,20 @@ inputs share the same underlying seeded stream. Random median cases also include
 owned strings and 64-byte elements to exercise larger, non-`Copy` values and
 element-movement costs.
 
+The production `kth-u8` series calls `kth::partition_u8_by_kth` on byte inputs.
+It preserves the full partition contract and uses four histogram lanes at
+1,024 bytes and above, with 32-bit counters up to `u32::MAX` bytes and wide counters beyond
+that. Small slices and min/max ranks retain the generic path. This typed entry
+point stays separate from `kth` in comparisons; a one-byte generic `T: Ord`
+cannot be assumed to have u8 ordering.
+
+A 60-sample confirmation on CPU 8 compared 1,024- and 65,536-element inputs
+at p01, median, and p99 across random, sorted, reverse, sawtooth, equal-valued,
+dominant-value, and clustered distributions. All 42 typed-byte cases beat `std`
+by at least 26.9% in that run. This does not establish the same margin for tiny
+inputs, min/max ranks, arbitrary types, or other machines. The standard report
+also includes the separate typed series on byte partitions and byte medians.
+
 The selector variants isolate the optimization experiments:
 
 Additional benchmark-only sampling, endgame, partition, duplicate, and numeric

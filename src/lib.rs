@@ -32,6 +32,7 @@ extern crate std;
 pub mod instrumentation;
 
 mod select;
+mod select_u8;
 
 /// Add k-th order element operations to slices.
 pub trait SliceExtKth {
@@ -83,6 +84,32 @@ impl<T: Ord> SliceExtKth for [T] {
 /// ```
 pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize) {
     select::select(s, pivot_order)
+}
+
+/// Partition bytes around the element with the given order index.
+///
+/// This explicit numeric entry point uses byte histograms for large slices.
+/// It takes O(n + 256) worst-case time without allocating. Small slices and
+/// extreme ranks use the generic selector. The output may be fully sorted.
+/// The histogram path uses four arrays of 256 counters on the stack: `u32`
+/// for slices up to `u32::MAX` bytes, and `usize` for larger slices.
+///
+/// # Panics
+///
+/// Panics if `pivot_order` is greater than or equal to the slice length.
+///
+/// # Examples
+///
+/// ```
+/// let mut bytes = [9, 3, 7, 3, 1];
+/// kth::partition_u8_by_kth(&mut bytes, 2);
+/// assert_eq!(bytes[2], 3);
+/// assert!(bytes[..2].iter().all(|v| *v <= bytes[2]));
+/// assert!(bytes[3..].iter().all(|v| *v >= bytes[2]));
+/// ```
+#[inline]
+pub fn partition_u8_by_kth(s: &mut [u8], pivot_order: usize) {
+    select_u8::select(s, pivot_order)
 }
 
 /// Internal module, public for testing

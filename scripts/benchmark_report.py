@@ -60,8 +60,13 @@ SCALING_CASES["random-wide64"] = "Seeded random 64-byte values"
 
 def partition_algorithms(case):
     # tpt-simd-sort requires Copy, which owned String does not implement.
-    return tuple(name for name in PARTITION_ALGORITHMS
-                 if name != "tpt-simd-sort" or not case.startswith("string-"))
+    generic = tuple(name for name in PARTITION_ALGORITHMS
+                    if name != "tpt-simd-sort" or not case.startswith("string-"))
+    return generic + (("kth-u8",) if case in ("random-u8", "trailing-one", "leading-one") else ())
+
+
+def median_algorithms(kind):
+    return MEDIAN_ALGORITHMS + (("kth-u8",) if kind == "u8" else ())
 
 
 COLORS = dict(zip(
@@ -69,6 +74,7 @@ COLORS = dict(zip(
     ("#2864dc", "#14836c", "#cc493d", "#8255b5", "#9a6324",
      "#e58c16", "#a39110", "#ca64a1", "#617489", "#1a9bb1"),
 ))
+COLORS["kth-u8"] = "#009e73"
 PROFILES = {
     "full": {"label": "Criterion default sampling", "warmup": "3", "measurement": "5",
              "samples": "100", "resamples": "100000"},
@@ -87,13 +93,13 @@ def sampling_flags(profile):
 
 
 def expected_keys(sizes=()):
-    keys = {("partition", case, name, None) for case in CASES for name in PARTITION_ALGORITHMS}
+    keys = {("partition", case, name, None) for case in CASES for name in partition_algorithms(case)}
     keys |= {("median-only", kind, name, None) for kind in ("u8", "u64")
-             for name in MEDIAN_ALGORITHMS}
+             for name in median_algorithms(kind)}
     keys |= {("scaling-partition", case, name, n) for n in sizes for case in SCALING_CASES
              for name in partition_algorithms(case)}
     keys |= {("scaling-median", kind, name, n | 1) for n in sizes for kind in ("u8", "u64")
-             for name in MEDIAN_ALGORITHMS}
+             for name in median_algorithms(kind)}
     return keys
 
 

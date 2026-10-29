@@ -5,7 +5,7 @@ fn partitions(c: &mut Criterion) {
     for n in sizes::sizes() {
         for (case, input) in cases::partition_cases(n) {
             let mut group = c.benchmark_group(format!("scaling-partition/{case}"));
-            cases::partitions(&mut group, &input, true);
+            cases::byte_partitions(&mut group, &input, true);
             group.finish();
         }
         let mut group = c.benchmark_group("scaling-partition/random-u64");
