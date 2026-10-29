@@ -22,6 +22,9 @@ pub(crate) fn select<T: Ord>(a: &mut [T], k: usize) {
     select_with_budget(a, k, a.len().saturating_mul(4));
 }
 
+// Keep the large driver independent of caller inlining and register pressure.
+// The separately inlined small-input path above keeps its short-call behavior.
+#[inline(never)]
 fn select_with_budget<T: Ord>(mut a: &mut [T], mut k: usize, mut budget: usize) {
     loop {
         let _partition_phase = instrumentation::phase(Phase::Partition);
