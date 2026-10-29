@@ -1,12 +1,13 @@
 # Selection experiments
 
-These are benchmark-only prototypes against revision `777e864`. The production
-selector and public API are unchanged. The small-input optimization in PR #18
-is separate; the endgame experiments here also affect narrowed tails of larger
-calls, and are not a reproduction of that PR.
+The initial benchmark-only prototypes below compare revision `777e864`.
+The byte histogram path was promoted separately as an explicit API in PR #20.
+Later adaptive candidates use a post-small-input control, described below.
+The initial endgame experiments also affect narrowed tails of larger calls,
+and are not a reproduction of the small-input optimization in PR #18.
 
 Enable the generic candidates with `--features experiments` on the `selection`
-benchmark. `control` is the current selector's policy in the common experiment
+benchmark. `control` is the frozen `777e864` policy in the common experiment
 driver. Compare with both `control` and public `kth`: identical operation counts
 can still have different timings because of compiler decisions and code layout.
 
@@ -96,7 +97,7 @@ Other outcomes:
 
 The strongest next numeric candidate is an explicit byte API using histogram
 reconstruction. Block partitioning is a useful large-record kernel, but needs
-handling for predictable input. No production policy was changed here.
+handling for predictable input. That initial study promoted no generic policy.
 
 ## Reproduction
 
@@ -167,7 +168,10 @@ perf report --stdio --no-children -i target/selection-perf.data
 ```
 
 The driver accepts a selector, element type, distribution, length, rank, and
-iteration count. It supports `kth`, `std`, and selected experiment names, as well
+iteration count. `reset-only` performs the same setup/validation and buffer resets
+but skips selection in the repeated loop. It estimates how much of a global
+counter run comes from input reset; subtracting separate noisy runs is not a
+sampled function profile. It supports `kth`, `std`, and selected experiment names, as well
 as the explicit byte and radix paths. One full partition/multiset validation runs
 before the loop. Profiling is diagnostic; elapsed-time claims use the separate
 Criterion cohorts. Keep profiler builds separate from benchmark builds if adding
@@ -268,3 +272,31 @@ proc mount was also denied by the operating system. Consequently there is no
 sampled call-stack/source-line attribution from this environment; do not interpret
 these global counters as a profile of individual functions. The profiling driver
 and record/report commands above remain usable on a host with matching mounts.
+
+## Isolated guarded selector
+
+`isolated` exposes the conservative guarded selector through the opt-in
+`bench-experiments` library feature. The benchmark crate's `experiments` feature
+enables it automatically. Default builds retain the established public selector.
+
+At active lengths >= 16,384, distinct samples and a disorder probe with no
+pivot-equal values can enable growing samples. Elements up to 32 bytes retain
+the outer-eighth entry pivots, and 17–32-byte values retain recursive sampling.
+Predictable or repeated entry samples also take the fixed path. Larger records
+can use 128-element buffered partitions. Added kernels use safe swaps, bounded
+stack space, and no allocation; the four-times-input outer budget and bounded
+sample selection remain. Cyclic stays benchmark-only.
+
+The study found strong random-record gains, but size-dependent regressions
+when trying to promote this policy. Moving checks out of a scalar loop fixed
+some losses, while other driver refactors changed 16/17-byte and duplicate-heavy
+timings substantially. Logical work and elapsed time did not always move together.
+The evidence does not support a new generic default. Keeping the experiment
+opt-in lets subsequent work investigate code generation and cache behavior
+without changing the production call graph.
+
+The fixed selector retains its original body and annotations. Feature-only
+wrappers share its safe kernels with the experiment. Instrumented recursive
+sample selection is counted as sampling work. `reset-only` profiling runs help
+separate buffer-reset costs from selection in global hardware counters; sampled
+source-line profiles remain unavailable in this executor.

@@ -109,6 +109,7 @@ impl selection_cases::Runner for Timing<'_> {
             register!("fr-sample", experiments::fr_sample);
             register!("fr-sample-block", experiments::fr_sample_block);
             register!("network16", experiments::network16);
+            register!("isolated", kth::benchmark_adaptive_partition_by_kth);
             register!("adaptive-control", adaptive::adaptive_control);
             register!("stratified-mid", adaptive::stratified_mid);
             register!("adaptive-block", adaptive::adaptive_block);

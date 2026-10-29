@@ -32,6 +32,8 @@ extern crate std;
 pub mod instrumentation;
 
 mod select;
+#[cfg(feature = "bench-experiments")]
+mod select_adaptive;
 mod select_u8;
 
 /// Add k-th order element operations to slices.
@@ -115,3 +117,10 @@ pub fn partition_u8_by_kth(s: &mut [u8], pivot_order: usize) {
 /// Internal module, public for testing
 #[doc(hidden)]
 pub mod quickselect;
+
+/// Opt-in guarded selector for benchmark experiments; not the default policy.
+#[doc(hidden)]
+#[cfg(feature = "bench-experiments")]
+pub fn benchmark_adaptive_partition_by_kth<T: Ord>(s: &mut [T], k: usize) {
+    select_adaptive::select(s, k)
+}

@@ -20,6 +20,7 @@ INTERNAL = ("sampling_comparisons", "partition_comparisons", "fallback_compariso
             "elements_scanned", "bytes_moved", "partition_passes", "small_slice_dispatches", "budget_fallbacks")
 INTEGER_FIELDS = ("k", "element_bytes", "array_bytes", "calls", "comparisons", *INTERNAL)
 COLORS = {"kth": "#2864dc", "swap": "#cc493d", "cyclic": "#d28b12", "rank-before": "#907451", "original": "#8255b5", "std": "#14836c"}
+COLORS["isolated"] = "#0077bb"
 COLORS["kth-u8"] = "#009e73"
 COLORS.update({"combined": "#cc6677", "guarded-cyclic": "#882255", "strict-duplicates": "#88ccee", "bounded-duplicates": "#44aa99", "guarded": "#006699", "adaptive-control": "#555555", "stratified-mid": "#4477aa", "adaptive-block": "#228833", "stratified-block": "#aa3377", "stratified-all": "#ccbb44"})
 COLORS.update(dict(zip(
@@ -86,7 +87,7 @@ def merge_counts(timings, path):
             if n <= 0 or calls <= 0 or not 0 <= row["k"] < n or row["array_bytes"] != n * row["element_bytes"]:
                 raise ValueError(f"Invalid workload dimensions: {name}")
             opaque = int(raw.get("opaque_sort_calls") or 0)
-            opaque_algorithms = {"kth", "adaptive-control", "stratified-mid", "adaptive-block", "stratified-block", "stratified-all", "guarded", "strict-duplicates", "bounded-duplicates", "combined", "guarded-cyclic"}
+            opaque_algorithms = {"isolated", "kth", "adaptive-control", "stratified-mid", "adaptive-block", "stratified-block", "stratified-all", "guarded", "strict-duplicates", "bounded-duplicates", "combined", "guarded-cyclic"}
             if not 0 <= opaque <= calls or (opaque and row["algorithm"] not in opaque_algorithms):
                 raise ValueError(f"Invalid opaque sort count: {name}")
             row["opaque_sort_calls"] = opaque

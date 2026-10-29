@@ -31,6 +31,8 @@ mod enabled {
     std::thread_local! {
         static COUNTS: Cell<Counts> = Cell::new(Counts::default());
         static PHASE: Cell<Phase> = const { Cell::new(Phase::Other) };
+        #[cfg(feature = "bench-experiments")]
+        static IN_SAMPLE: Cell<bool> = const { Cell::new(false) };
     }
 
     pub fn reset() {
@@ -53,13 +55,37 @@ mod enabled {
     pub fn comparison() {
         update(|c| {
             c.comparisons += 1;
-            PHASE.with(|p| match p.get() {
+            let current = PHASE.with(Cell::get);
+            #[cfg(feature = "bench-experiments")]
+            let current = IN_SAMPLE.with(|sample| {
+                if sample.get() {
+                    Phase::Sampling
+                } else {
+                    current
+                }
+            });
+            match current {
                 Phase::Other => (),
                 Phase::Sampling => c.sampling_comparisons += 1,
                 Phase::Partition => c.partition_comparisons += 1,
                 Phase::Fallback => c.fallback_comparisons += 1,
-            });
+            }
         });
+    }
+
+    #[cfg(feature = "bench-experiments")]
+    pub(crate) struct SamplingGuard(bool);
+
+    #[cfg(feature = "bench-experiments")]
+    impl Drop for SamplingGuard {
+        fn drop(&mut self) {
+            IN_SAMPLE.with(|sample| sample.set(self.0));
+        }
+    }
+
+    #[cfg(feature = "bench-experiments")]
+    pub(crate) fn sampling_scope() -> SamplingGuard {
+        SamplingGuard(IN_SAMPLE.with(|sample| sample.replace(true)))
     }
 
     pub struct PhaseGuard(Phase);
@@ -141,4 +167,42 @@ pub fn dispatch(small: bool) {
     });
     #[cfg(not(feature = "bench-instrumentation"))]
     let _ = small;
+}
+
+// All recursive work selecting a growing sample belongs to sampling, even when
+// that nested selector changes its own phase. No state exists in timing builds.
+#[cfg(all(feature = "bench-instrumentation", feature = "bench-experiments"))]
+pub(crate) use enabled::sampling_scope;
+
+#[cfg(all(not(feature = "bench-instrumentation"), feature = "bench-experiments"))]
+#[inline(always)]
+pub(crate) fn sampling_scope() -> PhaseGuard {
+    PhaseGuard
+}
+
+#[cfg(all(test, feature = "bench-instrumentation", feature = "bench-experiments"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nested_sample_selection_and_unwind_preserve_phase_totals() {
+        reset();
+        let _partition = phase(Phase::Partition);
+        comparison();
+        let result = std::panic::catch_unwind(|| {
+            let _sample = sampling_scope();
+            let _fallback = phase(Phase::Fallback);
+            comparison();
+            let _nested = sampling_scope();
+            comparison();
+            panic!("unwind the sampling scope");
+        });
+        assert!(result.is_err());
+        comparison();
+        let counts = snapshot();
+        assert_eq!(counts.comparisons, 4);
+        assert_eq!(counts.sampling_comparisons, 2);
+        assert_eq!(counts.partition_comparisons, 2);
+        assert_eq!(counts.fallback_comparisons, 0);
+    }
 }

@@ -363,6 +363,26 @@ fn sample_median<T: Ord>(a: &[T], start: usize, len: usize) -> usize {
     median3_index(a, x, y, z)
 }
 
+// Share kernels with opt-in experiments without changing the default call graph.
+#[cfg(feature = "bench-experiments")]
+#[inline(always)]
+pub(super) fn experimental_pivot<T: Ord>(a: &[T], k: usize) -> (usize, bool) {
+    choose_pivot(a, k)
+}
+#[cfg(feature = "bench-experiments")]
+#[inline(always)]
+pub(super) fn experimental_partition<T: Ord>(a: &mut [T], p: usize) -> usize {
+    partition(a, p)
+}
+#[cfg(feature = "bench-experiments")]
+#[inline(always)]
+pub(super) fn experimental_equal<T: Ord, const SKIP: bool>(
+    a: &mut [T],
+    p: usize,
+) -> (usize, usize) {
+    partition_equal::<T, SKIP>(a, p)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

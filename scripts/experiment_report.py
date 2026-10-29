@@ -38,7 +38,12 @@ def load_cohort(root, cohort, output):
     else:
         rows = list(timings.values())
         for row in rows:
-            width = 1 if row["case"].startswith("u8/") else 8
+            kind = row["case"].split("/")[0]
+            # The retained cohorts use a 64-bit host. These are inline element
+            # footprints; string payload allocations are separate.
+            width = {"u8": 1, "u64": 8, "String": 24, "str": 16}.get(kind)
+            if width is None:
+                width = int(kind.removesuffix("-byte"))
             row.update(k=rank_index(row["rank"], row["n"]), element_bytes=width, array_bytes=width * row["n"])
             for metric in ["comparisons_per_element", "scans_per_element", "bytes_moved_per_element", "budget_fallback_rate"]:
                 row[metric] = None

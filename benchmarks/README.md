@@ -134,6 +134,11 @@ by at least 26.9% in that run. This does not establish the same margin for tiny
 inputs, min/max ranks, arbitrary types, or other machines. The standard report
 also includes the separate typed series on byte partitions and byte medians.
 
+A later quiet repeat put 41 of those 42 byte cases at least 20% ahead of `std`.
+The 1,024-element dominant-value median took 671 ns versus 803 ns (16.4%
+faster). These are measured cohorts, not a portable minimum-speed guarantee;
+the histogram path performs the same work for interior ranks of one input.
+
 The selector variants isolate the optimization experiments:
 
 Additional benchmark-only sampling, endgame, partition, duplicate, and numeric
@@ -158,6 +163,12 @@ the whole sample's minimum/maximum. Center ranks retain the previous pivot rule,
 including the larger string samples. The choice is recomputed after each
 partition. These are heuristics protected by the unchanged `4 * original_len`
 work budget and deterministic fallback. No allocation or randomness was added.
+
+The `isolated` benchmark variant tests growing samples and buffered large-record
+partitions behind the opt-in `bench-experiments` library feature (enabled by the
+benchmark crate's `experiments` feature). It does not change the default selector.
+See [Selection experiments](EXPERIMENTS.md#isolated-guarded-selector) for the
+adoption decision and profiling findings.
 
 On repeated samples, the three-way partition skips an already-greater suffix
 when the active rank is in the lower eighth and elements are at most eight
