@@ -36,7 +36,7 @@ manually on `main`. Formatting remains checked only by the pinned CI formatter.
 CI publishes the latest `main` report at
 [codyps.github.io/kth](https://codyps.github.io/kth/). Each push to `main` runs
 the **Benchmark report** workflow with pinned Rust 1.99.0, Python 3.12, and
-matplotlib 3.10.7 and Plotly 6.5.0. It measures all 987 comparisons, builds the interactive
+matplotlib 3.10.7 and Plotly 6.5.0. It measures all 1,019 comparisons, builds the interactive
 HTML report with selectable relative-time baselines and PNG/SVG exports,
 and deploys them to GitHub Pages. The `--ci` profile uses 50 samples, half a second
 of warmup, and one second of measurement per comparison (roughly twenty-five minutes

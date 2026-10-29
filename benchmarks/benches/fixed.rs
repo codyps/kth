@@ -15,7 +15,7 @@ fn fixed_partitions(c: &mut Criterion) {
             .unwrap()
             .1;
         let mut group = c.benchmark_group(format!("partition/{case}"));
-        cases::partitions(&mut group, &input, false);
+        cases::byte_partitions(&mut group, &input, false);
         group.finish();
     }
     let mut group = c.benchmark_group("partition/random-u64");

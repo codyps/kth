@@ -103,6 +103,11 @@ pub fn partitions<T: Ord + Copy + core::fmt::Debug>(
     partition_inputs(group, &[input], scaling);
 }
 
+pub fn byte_partitions(group: &mut BenchmarkGroup<'_, WallTime>, input: &[u8], scaling: bool) {
+    partitions(group, input, scaling);
+    bench_partition_inputs(group, "kth-u8", &[input], scaling, kth::partition_u8_by_kth);
+}
+
 pub fn partition_inputs<T: Ord + Copy + core::fmt::Debug>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     inputs: &[impl AsRef<[T]>],
@@ -161,6 +166,11 @@ pub fn median_cases(c: &mut criterion::Criterion, suite: &str, n: usize, scaling
     let mut group = c.benchmark_group(format!("{suite}/u8"));
     medians(&mut group, &input, scaling, |v| {
         medians::medianu8(v).unwrap().0
+    });
+    bench_median(&mut group, "kth-u8", &input, scaling, |v| {
+        let k = v.len() / 2;
+        kth::partition_u8_by_kth(v, k);
+        v[k]
     });
     group.finish();
     let mut group = c.benchmark_group(format!("{suite}/u64"));
