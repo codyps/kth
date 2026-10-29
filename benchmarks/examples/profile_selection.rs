@@ -123,7 +123,7 @@ fn main() {
     } else {
         vec![(0..n)
             .map(|i| match case {
-                "sorted" => i as u64,
+                "sorted" | "ordered-asc" | "ordered-desc" => i as u64,
                 "reverse" => (n - i) as u64,
                 "equal" => 0,
                 "sawtooth" => (i % 7) as u64,
@@ -136,18 +136,27 @@ fn main() {
     };
     match kind {
         "u8" => {
-            let bank: Vec<Vec<u8>> = random
+            let mut bank: Vec<Vec<u8>> = random
                 .iter()
                 .map(|a| a.iter().map(|v| *v as u8).collect())
                 .collect();
+            if case.starts_with("ordered-") {
+                bank = vec![inputs::ordered_bytes(n, case == "ordered-desc")];
+            }
             let select = match algorithm {
                 "kth-u8" => kth::partition_u8_by_kth,
                 "byte-before" => byte_tuning::baseline,
+                "lanes-before" => byte_tuning::before_small,
                 "compact16" => byte_tuning::compact,
                 "lanes8-16" => byte_tuning::lanes8,
                 "merged32" => byte_tuning::merged,
                 "bitmap32" => byte_tuning::bitmap,
                 "entropy8" => byte_tuning::entropy8,
+                "lanes1-32" => byte_tuning::lanes1,
+                "lanes2-32" => byte_tuning::lanes2,
+                "ordered-bytes" => byte_tuning::ordered_bytes,
+                "adaptive-lanes" => byte_tuning::adaptive_lanes,
+                "sampled-lanes" => byte_tuning::sampled_lanes,
                 "counting" => numeric_experiments::counting,
                 "counting4" => numeric_experiments::counting4,
                 "histogram" => numeric_experiments::histogram,

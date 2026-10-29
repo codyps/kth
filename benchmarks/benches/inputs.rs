@@ -62,3 +62,14 @@ pub fn wide(random: &[Vec<u64>]) -> Vec<Vec<[u64; 8]>> {
         .map(|v| v.iter().map(|x| [*x; 8]).collect())
         .collect()
 }
+
+/// A globally ordered byte ramp, after narrowing to the byte range.
+#[allow(dead_code)] // Only the focused byte benchmarks and profiler use this.
+pub fn ordered_bytes(n: usize, reverse: bool) -> Vec<u8> {
+    let mut values: Vec<_> = (0..n).map(|i| i as u8).collect();
+    values.sort_unstable();
+    if reverse {
+        values.reverse();
+    }
+    values
+}

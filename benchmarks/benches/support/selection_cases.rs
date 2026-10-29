@@ -244,11 +244,14 @@ fn numeric<T: Ord + Clone + Debug>(
         if cfg!(feature = "experiments") {
             cases.extend(["dominant", "clustered"]);
         }
+        if name == "u8" {
+            cases.extend(["ordered-asc", "ordered-desc"]);
+        }
         for case in cases {
-            let values = (0..n)
+            let mut values: Vec<_> = (0..n)
                 .map(|i| {
                     convert(match case {
-                        "sorted" => i as u64,
+                        "sorted" | "ordered-asc" | "ordered-desc" => i as u64,
                         "reverse" => (n - 1 - i) as u64,
                         "organ-pipe" => i.min(n - 1 - i) as u64,
                         "sawtooth" => (i % 7) as u64,
@@ -262,8 +265,15 @@ fn numeric<T: Ord + Clone + Debug>(
                     })
                 })
                 .collect();
+            if case.starts_with("ordered-") {
+                values.sort_unstable();
+                if case == "ordered-desc" {
+                    values.reverse();
+                }
+            }
             // Structured workloads retain their focused median coverage.
-            if case == "dominant"
+            if case.starts_with("ordered-")
+                || case == "dominant"
                 || case == "clustered"
                 || (cfg!(feature = "experiments")
                     && matches!(case, "sorted" | "reverse" | "organ-pipe"))
@@ -380,6 +390,51 @@ mod tests {
     fn short_values_preserve_structured_integer_order() {
         for x in 0..1024 {
             assert!(bytes::<7>(x) < bytes::<7>(x + 1));
+        }
+    }
+
+    #[test]
+    fn ordered_byte_workloads_are_monotone_after_narrowing() {
+        struct Check(usize);
+        impl Runner for Check {
+            fn run<T: Ord + Clone + Debug>(
+                &mut self,
+                name: &str,
+                bank: &[Vec<T>],
+                _: &str,
+                _: usize,
+            ) {
+                if name == "u8/ordered-asc" || name == "u8/ordered-desc" {
+                    self.0 += 1;
+                    for values in bank {
+                        assert!(values.windows(2).all(|pair| if name.ends_with("asc") {
+                            pair[0] <= pair[1]
+                        } else {
+                            pair[0] >= pair[1]
+                        }));
+                    }
+                }
+            }
+        }
+        let mut settings = config("ranks");
+        settings.lengths = Some(vec![1024]);
+        settings.ranks = Some(["median".into()].into());
+        let mut check = Check(0);
+        numeric(&settings, &mut check, "u8", |v| v as u8);
+        assert_eq!(check.0, 2);
+
+        for reverse in [false, true] {
+            let values = inputs::ordered_bytes(1024, reverse);
+            assert!(values.windows(2).all(|pair| if reverse {
+                pair[0] >= pair[1]
+            } else {
+                pair[0] <= pair[1]
+            }));
+            let mut counts = [0; 256];
+            for v in values {
+                counts[v as usize] += 1;
+            }
+            assert_eq!(counts, [4; 256]);
         }
     }
 

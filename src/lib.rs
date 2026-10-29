@@ -93,8 +93,10 @@ pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize) {
 /// This explicit numeric entry point uses byte histograms for large slices.
 /// It takes O(n + 256) worst-case time without allocating. Small slices and
 /// extreme ranks use the generic selector. The output may be fully sorted.
-/// The histogram path uses four arrays of 256 counters on the stack: `u32`
-/// for slices up to `u32::MAX` bytes, and `usize` for larger slices.
+/// Sampled value concentration selects one, two or four arrays of 256 `u32`
+/// counters, or eight arrays of `u16` counters when each lane fits. Histograms
+/// use at most four KiB through `u32::MAX` bytes; larger slices use four arrays
+/// of 256 `usize` counters.
 ///
 /// # Panics
 ///

@@ -78,6 +78,8 @@ fn suite(c: &mut Criterion) {
             "reverse",
             "dominant",
             "clustered",
+            "ordered-asc",
+            "ordered-desc",
         ] {
             let structured = vec![(0..n)
                 .map(|i| match case {
@@ -95,10 +97,13 @@ fn suite(c: &mut Criterion) {
             } else {
                 &structured
             };
-            let bytes: Vec<Vec<u8>> = bank
+            let mut bytes: Vec<Vec<u8>> = bank
                 .iter()
                 .map(|a| a.iter().map(|v| *v as u8).collect())
                 .collect();
+            if case == "ordered-asc" || case == "ordered-desc" {
+                bytes = vec![inputs::ordered_bytes(n, case == "ordered-desc")];
+            }
             for rank in ranks.split(',') {
                 let k = match rank {
                     "min" => 0,
@@ -116,11 +121,17 @@ fn suite(c: &mut Criterion) {
                         ("kth", kth::partition_by_kth as fn(&mut [u8], usize)),
                         ("kth-u8", kth::partition_u8_by_kth),
                         ("byte-before", byte_tuning::baseline),
+                        ("lanes-before", byte_tuning::before_small),
                         ("compact16", byte_tuning::compact),
                         ("lanes8-16", byte_tuning::lanes8),
                         ("merged32", byte_tuning::merged),
                         ("bitmap32", byte_tuning::bitmap),
                         ("entropy8", byte_tuning::entropy8),
+                        ("lanes1-32", byte_tuning::lanes1),
+                        ("lanes2-32", byte_tuning::lanes2),
+                        ("ordered-bytes", byte_tuning::ordered_bytes),
+                        ("adaptive-lanes", byte_tuning::adaptive_lanes),
+                        ("sampled-lanes", byte_tuning::sampled_lanes),
                         ("std", standard),
                         ("histogram", numeric_experiments::histogram),
                         ("histogram4", numeric_experiments::histogram4),
@@ -130,7 +141,7 @@ fn suite(c: &mut Criterion) {
                         bench(c, &format!("u8/{case}"), &bytes, rank, k, algorithm, select);
                     }
                 }
-                if types.split(',').any(|v| v == "u64") {
+                if types.split(',').any(|v| v == "u64") && !case.starts_with("ordered-") {
                     for (algorithm, select) in [
                         ("kth", kth::partition_by_kth as fn(&mut [u64], usize)),
                         ("std", standard),
