@@ -5,6 +5,9 @@ edition = "2021"
 publish = false
 autobenches = false
 
+[features]
+instrumentation = ["kth/bench-instrumentation"]
+
 [dev-dependencies]
 kth = { path = ".." }
 criterion = "0.8"
@@ -27,3 +30,12 @@ debug = 2
 [[bench]]
 name = "selection"
 harness = false
+
+[[bench]]
+name = "selection_counts"
+harness = false
+required-features = ["instrumentation"]
+
+[[test]]
+name = "selection_cases"
+path = "tests/selection_cases.rs"

@@ -9,6 +9,8 @@
 //!
 //! Another paper by Andrei Alexandrescu on this topic: https://arxiv.org/pdf/1606.00484v1.pdf
 
+use crate::instrumentation;
+
 /// Find the `k`-th smallest element in `a`, place it at `a[k]` and partition `a` around that
 /// element (all smaller than the element to the left, all larger to the right).
 ///
@@ -46,7 +48,7 @@ pub fn quickselect<T: Ord, P: Fn(&mut [T]) -> usize>(partition: P, mut a: &mut [
 pub fn sort5<T: Ord>(a: &mut [T; 5]) {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
-            a.swap(i, j)
+            instrumentation::swap(a, i, j)
         }
     };
 
@@ -73,7 +75,7 @@ pub fn sort5<T: Ord>(a: &mut [T; 5]) {
 pub fn partition5_2<T: Ord>(a: &mut [T; 5]) {
     let mut cswap = |i: usize, j: usize| {
         if a[i] > a[j] {
-            a.swap(i, j)
+            instrumentation::swap(a, i, j)
         }
     };
 
@@ -105,25 +107,25 @@ pub fn partition5<T: Ord>(x: &mut [T; 5]) {
     let d = 3;
     let e = 4;
     if x[c] < x[a] {
-        x.swap(a, c);
+        instrumentation::swap(x, a, c);
     }
     if x[d] < x[b] {
-        x.swap(b, d);
+        instrumentation::swap(x, b, d);
     }
     if x[d] < x[c] {
-        x.swap(c, d);
-        x.swap(a, b);
+        instrumentation::swap(x, c, d);
+        instrumentation::swap(x, a, b);
     }
     if x[e] < x[b] {
-        x.swap(b, e);
+        instrumentation::swap(x, b, e);
     }
     if x[e] < x[c] {
-        x.swap(c, e);
+        instrumentation::swap(x, c, e);
         if x[c] < x[a] {
-            x.swap(a, c);
+            instrumentation::swap(x, a, c);
         }
     } else if x[c] < x[b] {
-        x.swap(b, c);
+        instrumentation::swap(x, b, c);
     }
 }
 
@@ -161,20 +163,20 @@ pub fn median3<T: Ord>(r: &mut [T], a: usize, b: usize, c: usize) {
             // b < a, b < c
             if r[c] < r[a] {
                 // b < c < a
-                r.swap(b, c);
+                instrumentation::swap(r, b, c);
             } else {
                 // b < a <= c
-                r.swap(b, a);
+                instrumentation::swap(r, b, a);
             }
         }
     } else if r[c] < r[b] {
         // a <= b, c < b
         if r[c] < r[a] {
             // c < a <= b
-            r.swap(b, a);
+            instrumentation::swap(r, b, a);
         } else {
             // a <= c < b
-            r.swap(b, c);
+            instrumentation::swap(r, b, c);
         }
     }
     debug_assert!(r[a] <= r[b] && r[b] <= r[c] || r[a] >= r[b] && r[b] >= r[c]);
@@ -200,22 +202,22 @@ pub fn sort3<T: Ord>(a: &mut [T; 3]) {
         if a[1] <= a[2] {
         } else {
             if a[0] <= a[2] {
-                a.swap(1, 2);
+                instrumentation::swap(a, 1, 2);
             } else {
-                a.swap(0, 1);
-                a.swap(0, 2);
+                instrumentation::swap(a, 0, 1);
+                instrumentation::swap(a, 0, 2);
             }
         }
     } else {
         if a[0] <= a[2] {
-            a.swap(0, 1);
+            instrumentation::swap(a, 0, 1);
         } else {
             // 1 < 0 && 2 < 0
             if a[1] < a[2] {
-                a.swap(0, 1);
-                a.swap(1, 2);
+                instrumentation::swap(a, 0, 1);
+                instrumentation::swap(a, 1, 2);
             } else {
-                a.swap(0, 2);
+                instrumentation::swap(a, 0, 2);
             }
         }
     }
@@ -255,11 +257,11 @@ pub fn ninther<T: Ord>(
     } else {
         // Here we know r[_5] is the median of r[_4], r[_5], r[_6]
         if r[e] < r[m1] {
-            r.swap(e, m1);
+            instrumentation::swap(r, e, m1);
             return;
         }
         if r[e] > r[m3] {
-            r.swap(e, m3);
+            instrumentation::swap(r, e, m3);
             return;
         }
         // This is the only path that returns with no swap
@@ -271,7 +273,7 @@ pub fn ninther<T: Ord>(
     } else if r[d] > r[m3] {
         d = m3;
     }
-    r.swap(e, d);
+    instrumentation::swap(r, e, d);
 }
 
 /*
@@ -326,8 +328,9 @@ pub fn repeated_step3<T: Ord>(a: &mut [T]) -> usize {
     let mut j = 0;
 
     while i + 2 < a.len() {
+        instrumentation::scanned(3);
         sort3((&mut a[i..i + 3]).try_into().unwrap());
-        a.swap(i + 1, j);
+        instrumentation::swap(a, i + 1, j);
         i += 3;
         j += 1;
     }
@@ -335,8 +338,9 @@ pub fn repeated_step3<T: Ord>(a: &mut [T]) -> usize {
     let mut i = 0;
     let mut m = 0;
     while i + 2 < j {
+        instrumentation::scanned(3);
         sort3((&mut a[i..i + 3]).try_into().unwrap());
-        a.swap(i + 1, m);
+        instrumentation::swap(a, i + 1, m);
         i += 3;
         m += 1;
     }
@@ -365,8 +369,9 @@ pub fn bfprt_baseline<T: Ord>(a: &mut [T]) -> usize {
     let mut j = 0;
 
     while i + 4 < a.len() {
+        instrumentation::scanned(5);
         partition5((&mut a[i..i + 5]).try_into().unwrap());
-        a.swap(i + 2, j);
+        instrumentation::swap(a, i + 2, j);
         i += 5;
         j += 1;
     }
@@ -407,8 +412,9 @@ pub fn repeated_step<T: Ord>(a: &mut [T]) -> usize {
     let mut j = 0;
 
     while i + 2 < a.len() {
+        instrumentation::scanned(3);
         sort3((&mut a[i..(i + 3)]).try_into().unwrap());
-        a.swap(i + 1, j);
+        instrumentation::swap(a, i + 1, j);
         i += 3;
         j += 1;
     }
@@ -416,8 +422,9 @@ pub fn repeated_step<T: Ord>(a: &mut [T]) -> usize {
     let mut i = 0;
     let mut m = 0;
     while i + 2 < j {
+        instrumentation::scanned(3);
         sort3((&mut a[i..(i + 3)]).try_into().unwrap());
-        a.swap(i + 1, m);
+        instrumentation::swap(a, i + 1, m);
         i += 3;
         m += 1;
     }
@@ -467,11 +474,12 @@ fn bfprt_improved<T: Ord>(a: &mut [T])
 ///  - Swap elements if the cursors have not crossed.
 ///  - Repeat
 pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize) -> usize {
+    instrumentation::partition_pass();
     let p = pivot;
     debug_assert!(!arr.is_empty());
     debug_assert!(p < arr.len());
 
-    arr.swap(0, p);
+    instrumentation::swap(arr, 0, p);
     let mut a = 1;
     let mut b = arr.len() - 1;
 
@@ -481,6 +489,7 @@ pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize) -> usize {
                 break 'a;
             }
 
+            instrumentation::scanned(1);
             if arr[a] >= arr[0] {
                 break;
             }
@@ -488,7 +497,10 @@ pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize) -> usize {
             a += 1;
         }
 
-        while arr[0] < arr[b] {
+        while {
+            instrumentation::scanned(1);
+            arr[0] < arr[b]
+        } {
             b -= 1;
         }
 
@@ -496,13 +508,13 @@ pub fn hoare_partition<T: Ord>(arr: &mut [T], pivot: usize) -> usize {
             break;
         }
 
-        arr.swap(a, b);
+        instrumentation::swap(arr, a, b);
         a += 1;
         b -= 1;
     }
 
     a -= 1;
-    arr.swap(0, a);
+    instrumentation::swap(arr, 0, a);
     a
 }
 
