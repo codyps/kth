@@ -65,7 +65,8 @@ impl<T: Ord> SliceExtKth for [T] {
 /// The k-th element can then be read from `self[pivot_order]`, if desired.
 ///
 /// Uses rank-aware sampled pivots with a deterministic fallback for O(n) worst-case time,
-/// without allocating.
+/// without allocating. Large disordered slices use growing samples; large elements
+/// can use two fixed 128-entry offset buffers on the stack for partitioning.
 ///
 /// # Panics
 ///

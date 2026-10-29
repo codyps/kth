@@ -1,12 +1,13 @@
 # Selection experiments
 
-These are benchmark-only prototypes against revision `777e864`. The production
-selector and public API are unchanged. The small-input optimization in PR #18
-is separate; the endgame experiments here also affect narrowed tails of larger
-calls, and are not a reproduction of that PR.
+The initial benchmark-only prototypes below compare revision `777e864`.
+The byte histogram path was promoted separately as an explicit API in PR #20.
+Later adaptive candidates use a post-small-input control, described below.
+The initial endgame experiments also affect narrowed tails of larger calls,
+and are not a reproduction of the small-input optimization in PR #18.
 
 Enable the generic candidates with `--features experiments` on the `selection`
-benchmark. `control` is the current selector's policy in the common experiment
+benchmark. `control` is the frozen `777e864` policy in the common experiment
 driver. Compare with both `control` and public `kth`: identical operation counts
 can still have different timings because of compiler decisions and code layout.
 
@@ -96,7 +97,7 @@ Other outcomes:
 
 The strongest next numeric candidate is an explicit byte API using histogram
 reconstruction. Block partitioning is a useful large-record kernel, but needs
-handling for predictable input. No production policy was changed here.
+handling for predictable input. That initial study promoted no generic policy.
 
 ## Reproduction
 
@@ -167,7 +168,10 @@ perf report --stdio --no-children -i target/selection-perf.data
 ```
 
 The driver accepts a selector, element type, distribution, length, rank, and
-iteration count. It supports `kth`, `std`, and selected experiment names, as well
+iteration count. `reset-only` performs the same setup/validation and buffer resets
+but skips selection in the repeated loop. It estimates how much of a global
+counter run comes from input reset; subtracting separate noisy runs is not a
+sampled function profile. It supports `kth`, `std`, and selected experiment names, as well
 as the explicit byte and radix paths. One full partition/multiset validation runs
 before the loop. Profiling is diagnostic; elapsed-time claims use the separate
 Criterion cohorts. Keep profiler builds separate from benchmark builds if adding
@@ -268,3 +272,23 @@ proc mount was also denied by the operating system. Consequently there is no
 sampled call-stack/source-line attribution from this environment; do not interpret
 these global counters as a profile of individual functions. The profiling driver
 and record/report commands above remain usable on a host with matching mounts.
+
+## Guarded production policy
+
+The public selector uses a conservative refinement of `guarded`: samples can
+grow at active lengths >= 16,384 if the fixed sample is distinct and the disorder
+probe contains no value equal to the pivot. Elements up to 32 bytes retain the
+existing outer-eighth tail pivots; the 17–32-byte recursive sampler is preserved
+for every rank. Larger records can grow tail samples too. Disordered records
+larger than 32 bytes can use buffered partitioning; other inputs keep their
+existing partition kernel. Cyclic remains benchmark-only.
+
+Rejecting equal probes avoids the extra passes observed on few-unique borrowed
+strings in the first candidate. Sampling decisions are outlined: placing those
+checks in the hot scalar driver caused a reproducible 25% slowdown in ordered
+u64 cases in the direct-call harness, despite little difference in the separate
+function-pointer profiling driver. Moving the checks out restored those timings.
+Recursive sample selection is counted as sampling work in instrumented builds.
+The four-times-input budget bounds outer partition work, and sample selection
+has its own bounded fallback. The API remains allocation-free and uses safe
+swaps throughout these added kernels.

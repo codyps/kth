@@ -155,9 +155,21 @@ and run through `benchmarks/tests/cyclic.rs`.
 Rank-aware selection samples the centers of nine regions for tail ranks. In the
 outer eighth it uses the median of three minima/maxima; in the outer 1/84 it uses
 the whole sample's minimum/maximum. Center ranks retain the previous pivot rule,
-including the larger string samples. The choice is recomputed after each
-partition. These are heuristics protected by the unchanged `4 * original_len`
-work budget and deterministic fallback. No allocation or randomness was added.
+including the larger string samples. At active lengths of at least 16,384,
+a 16-position disorder probe can enable a jittered stratified sample of up to
+1,024 values. It rejects repeated probe values equal to the pivot. Growth keeps
+the existing tail pivots for elements up to 32 bytes; larger records can grow
+samples for tail ranks too. The 17–32-byte recursive sampler remains.
+For elements larger than 32 bytes, the same disorder gate can enable a buffered
+128-element partition; ordered inputs keep Hoare partitioning. Swap-based
+partitioning remains the default for smaller elements; cyclic remains experimental.
+
+The choice is recomputed after each partition. These are heuristics protected
+by the unchanged `4 * original_len` work budget and deterministic fallback.
+The growing sample is selected in place; scratch offset buffers use bounded
+stack space. No allocation or external random source was added. See
+[Selection experiments](EXPERIMENTS.md#adaptive-sampling-experiments) for the
+isolated candidates and [hardware counters](EXPERIMENTS.md#hardware-counter-findings).
 
 On repeated samples, the three-way partition skips an already-greater suffix
 when the active rank is in the lower eighth and elements are at most eight

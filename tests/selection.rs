@@ -251,11 +251,11 @@ fn comparator_panics_preserve_owned_elements() {
         }
     }
     fn exercise<T: Ord + AsRef<Item<PAD>>, const PAD: usize>(wrap: impl Fn(Item<PAD>) -> T) {
-        for n in [8, 16, 64, 256] {
+        for n in [8, 16, 64, 256, 16384] {
             for equal in [false, true] {
-                for panic_at in [0, 1, 8, 32, 128]
+                for panic_at in [0, 1, 8, 32, 128, 4096, 16384]
                     .into_iter()
-                    .filter(|&at| n == 256 || at < n / 2)
+                    .filter(|&at| n >= 16384 || (n == 256 && at <= 128) || at < n / 2)
                 {
                     let state = Rc::new(State {
                         calls: Cell::new(0),
@@ -266,7 +266,13 @@ fn comparator_panics_preserve_owned_elements() {
                         .map(|id| {
                             wrap(Item {
                                 _padding: [0; PAD],
-                                key: if equal { 0 } else { (id * 37) % 257 },
+                                key: if equal {
+                                    0
+                                } else if n >= 16384 {
+                                    (id as u64).wrapping_mul(6364136223846793005) as usize
+                                } else {
+                                    (id * 37) % 257
+                                },
                                 id,
                                 state: state.clone(),
                             })
@@ -338,6 +344,36 @@ fn strings_match_sorting_across_cutoffs_and_patterns() {
                 assert!(actual[k + 1..].iter().all(|x| x >= &actual[k]));
                 actual.sort_unstable();
                 assert_eq!(actual, expected);
+            }
+        }
+    }
+}
+
+#[test]
+fn guarded_samples_and_blocks_preserve_contract_across_thresholds() {
+    let mut rng = StdRng::seed_from_u64(20261029);
+    // Include the activation threshold, the 1024-sample cap, and irregular tails.
+    for n in [16383usize, 16384, 16385, 65537, 262143, 262144, 262145] {
+        for pattern in 0..5 {
+            let input: Vec<u64> = (0..n)
+                .map(|i| match pattern {
+                    0 => rng.random(),
+                    1 => (i % 7) as u64,
+                    2 => i as u64,
+                    3 => (n - i) as u64,
+                    _ => {
+                        if i % 10 == 0 {
+                            rng.random()
+                        } else {
+                            5
+                        }
+                    }
+                })
+                .collect();
+            let wide: Vec<_> = input.iter().map(|v| [*v; 8]).collect();
+            for k in [1, n / 100, n / 8, n / 2, n * 99 / 100, n - 2] {
+                check(&input, k);
+                check(&wide, k);
             }
         }
     }

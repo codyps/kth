@@ -25,7 +25,8 @@ fn standard<T: Ord>(a: &mut [T], k: usize) {
 fn selector<T: Ord>(name: &str) -> fn(&mut [T], usize) {
     match name {
         "kth" => kth::partition_by_kth,
-        "std" => standard,
+        // Validation still selects once; the repeated loop only resets buffers.
+        "std" | "reset-only" => standard,
         "control" => experiments::control,
         "adaptive-control" => adaptive::adaptive_control,
         "guarded" => adaptive::guarded,
@@ -49,6 +50,7 @@ fn run<T: Ord + Clone + Debug>(
     k: usize,
     iterations: usize,
     select: fn(&mut [T], usize),
+    reset_only: bool,
 ) {
     let mut expected = bank[0].clone();
     expected.sort_unstable();
@@ -62,11 +64,18 @@ fn run<T: Ord + Clone + Debug>(
     let select = black_box(select);
     for i in 0..iterations {
         values.clone_from(&bank[i % bank.len()]);
-        select(black_box(&mut values), black_box(k));
+        if !reset_only {
+            select(black_box(&mut values), black_box(k));
+        }
         black_box(&values);
     }
     println!(
-        "completed {iterations} selections, n={}, k={k}",
+        "completed {iterations} {}, n={}, k={k}",
+        if reset_only {
+            "buffer resets"
+        } else {
+            "selections"
+        },
         values.len()
     );
 }
@@ -79,6 +88,7 @@ fn main() {
         "usage: profile_selection ALGORITHM TYPE CASE N RANK ITERATIONS"
     );
     let (algorithm, kind, case) = (args[0].as_str(), args[1].as_str(), args[2].as_str());
+    let reset_only = algorithm == "reset-only";
     let n: usize = args[3].parse().unwrap();
     let iterations: usize = args[5].parse().unwrap();
     assert!(n > 0 && iterations > 0);
@@ -121,7 +131,7 @@ fn main() {
                 "histogram4" => numeric_experiments::histogram4,
                 _ => selector(algorithm),
             };
-            run(&bank, k, iterations, select);
+            run(&bank, k, iterations, select, reset_only);
         }
         "u64" => {
             let select = match algorithm {
@@ -131,19 +141,25 @@ fn main() {
                 "x86-simd" => numeric_experiments::simd,
                 _ => selector(algorithm),
             };
-            run(&random, k, iterations, select);
+            run(&random, k, iterations, select, reset_only);
         }
-        "64-byte" => run(&inputs::wide(&random), k, iterations, selector(algorithm)),
+        "64-byte" => run(
+            &inputs::wide(&random),
+            k,
+            iterations,
+            selector(algorithm),
+            reset_only,
+        ),
         "String" | "str" => {
             let words = inputs::strings(case, &random);
             if kind == "String" {
-                run(&words, k, iterations, selector(algorithm));
+                run(&words, k, iterations, selector(algorithm), reset_only);
             } else {
                 let borrowed: Vec<Vec<&str>> = words
                     .iter()
                     .map(|a| a.iter().map(String::as_str).collect())
                     .collect();
-                run(&borrowed, k, iterations, selector(algorithm));
+                run(&borrowed, k, iterations, selector(algorithm), reset_only);
             }
         }
         _ => panic!("unsupported type: {kind}"),
