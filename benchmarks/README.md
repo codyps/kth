@@ -122,6 +122,9 @@ element-movement costs.
 
 The selector variants isolate the optimization experiments:
 
+Additional benchmark-only sampling, endgame, partition, duplicate, and numeric
+prototypes are documented in [Selection experiments](EXPERIMENTS.md).
+
 - `kth`: rank-aware sampled pivots with swap-based partitioning (the default).
 - `swap`: frozen median-oriented selector from revision `4f9c8a6`, with its
   original swap partitions, duplicate handling, dispatch thresholds, and fallback.

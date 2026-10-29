@@ -9,6 +9,9 @@ use std::{
 
 #[path = "support/cyclic_baseline.rs"]
 mod cyclic_baseline;
+#[cfg(feature = "experiments")]
+#[path = "support/experiments.rs"]
+mod experiments;
 #[allow(dead_code)]
 mod inputs;
 #[path = "support/rank_baseline.rs"]
@@ -55,7 +58,30 @@ struct Counter<W> {
 
 impl<W: Write> selection_cases::Runner for Counter<W> {
     fn run<T: Ord + Clone + Debug>(&mut self, name: &str, inputs: &[Vec<T>], rank: &str, k: usize) {
-        for algorithm in ["original", "swap", "cyclic", "rank-before", "kth", "std"] {
+        let algorithms = ["original", "swap", "cyclic", "rank-before", "kth", "std"];
+        #[cfg(feature = "experiments")]
+        let algorithms = [
+            algorithms.as_slice(),
+            &[
+                "control",
+                "small16",
+                "small32",
+                "fr-window",
+                "expand",
+                "block64",
+                "block128",
+                "ancestor",
+                "ancestor-sample",
+                "sesquick",
+                "fr-block",
+                "ninther-all",
+                "fr-sample",
+                "fr-sample-block",
+                "network16",
+            ],
+        ]
+        .concat();
+        for algorithm in algorithms {
             let n = inputs[0].len();
             let id = format!("selection/{name}/{rank}/{algorithm}/{n}");
             if !id.contains(&self.filter) || self.ids.as_ref().is_some_and(|ids| !ids.contains(&id))
@@ -70,11 +96,13 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                 let mut values: Vec<_> = input.iter().cloned().map(Counted).collect();
                 instrumentation::reset();
                 {
-                    let _phase = instrumentation::phase(if algorithm == "original" {
-                        Phase::Fallback
-                    } else {
-                        Phase::Other
-                    });
+                    let _phase = instrumentation::phase(
+                        if algorithm == "original" || algorithm == "ninther-all" {
+                            Phase::Fallback
+                        } else {
+                            Phase::Other
+                        },
+                    );
                     match algorithm {
                         "original" => kth::quickselect::quickselect(
                             kth::quickselect::repeated_step3,
@@ -88,6 +116,36 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                         "std" => {
                             values.select_nth_unstable(k);
                         }
+                        #[cfg(feature = "experiments")]
+                        "control" => experiments::control(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "small16" => experiments::small16(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "small32" => experiments::small32(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "fr-window" => experiments::fr_window(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "expand" => experiments::expand(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "block64" => experiments::block64(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "block128" => experiments::block128(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "ancestor" => experiments::ancestor(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "ancestor-sample" => experiments::ancestor_sample(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "sesquick" => experiments::sesquick(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "fr-block" => experiments::fr_block(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "ninther-all" => experiments::ninther_all(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "fr-sample" => experiments::fr_sample(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "fr-sample-block" => experiments::fr_sample_block(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "network16" => experiments::network16(&mut values, k),
                         _ => unreachable!(),
                     }
                 }

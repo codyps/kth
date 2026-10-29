@@ -232,7 +232,7 @@ fn numeric<T: Ord + Clone + Debug>(
         }
         // Release the random bank before materializing the structured inputs.
         drop(bank);
-        for case in [
+        let mut cases = vec![
             "sorted",
             "reverse",
             "organ-pipe",
@@ -240,7 +240,11 @@ fn numeric<T: Ord + Clone + Debug>(
             "equal",
             "leading-one",
             "trailing-one",
-        ] {
+        ];
+        if cfg!(feature = "experiments") {
+            cases.extend(["dominant", "clustered"]);
+        }
+        for case in cases {
             let values = (0..n)
                 .map(|i| {
                     convert(match case {
@@ -251,12 +255,28 @@ fn numeric<T: Ord + Clone + Debug>(
                         "equal" => 0,
                         "leading-one" => u64::from(i == 0),
                         "trailing-one" => u64::from(i == n - 1),
+                        "dominant" if i % 10 != 0 => 5,
+                        "clustered" if i < n * 9 / 10 => 5,
+                        "dominant" | "clustered" => (i as u64).wrapping_mul(6364136223846793005),
                         _ => unreachable!(),
                     })
                 })
                 .collect();
             // Structured workloads retain their focused median coverage.
-            if config.ranks.as_ref().is_none_or(|r| r.contains("median")) {
+            if case == "dominant"
+                || case == "clustered"
+                || (cfg!(feature = "experiments")
+                    && matches!(case, "sorted" | "reverse" | "organ-pipe"))
+            {
+                for (rank, k) in config.ranks(n) {
+                    runner.run(
+                        &format!("{name}/{case}"),
+                        std::slice::from_ref(&values),
+                        &rank,
+                        k,
+                    );
+                }
+            } else if config.ranks.as_ref().is_none_or(|r| r.contains("median")) {
                 runner.run(&format!("{name}/{case}"), &[values], "median", n / 2);
             }
         }
@@ -313,7 +333,9 @@ pub fn visit(config: &Config, runner: &mut impl Runner) {
         let random = inputs::random_bank_of(n, config.input_count, |x| x);
         for case in inputs::string_cases(true) {
             let words = inputs::strings(case, &random);
-            let ranks = if case == "random" {
+            let ranks = if case == "random"
+                || (cfg!(feature = "experiments") && matches!(case, "sorted" | "reverse"))
+            {
                 config.ranks(n)
             } else {
                 if config.ranks.as_ref().is_some_and(|r| !r.contains("median")) {

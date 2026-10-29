@@ -7,6 +7,9 @@ autobenches = false
 
 [features]
 instrumentation = ["kth/bench-instrumentation"]
+experiments = []
+# Optional C++ AVX-512 reference; requires KTH_X86_SIMD_SOURCE and g++.
+native-simd = ["experiments"]
 
 [dev-dependencies]
 kth = { path = ".." }
@@ -27,6 +30,9 @@ harness = false
 [profile.bench]
 debug = 2
 
+[profile.release]
+debug = 2
+
 [[bench]]
 name = "selection"
 harness = false
@@ -39,3 +45,18 @@ required-features = ["instrumentation"]
 [[test]]
 name = "selection_cases"
 path = "tests/selection_cases.rs"
+
+[[test]]
+name = "experiments"
+path = "tests/experiments.rs"
+required-features = ["experiments"]
+
+[[example]]
+name = "profile_selection"
+path = "examples/profile_selection.rs"
+required-features = ["experiments"]
+
+[[bench]]
+name = "numeric_experiments"
+harness = false
+required-features = ["experiments"]
