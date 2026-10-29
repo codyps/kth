@@ -300,3 +300,55 @@ wrappers share its safe kernels with the experiment. Instrumented recursive
 sample selection is counted as sampling work. `reset-only` profiling runs help
 separate buffer-reset costs from selection in global hardware counters; sampled
 source-line profiles remain unavailable in this executor.
+
+## Verifying weak duplicate hints
+
+Requiring all three representatives to match lost the dominant-value fast path.
+The next experiments instead check a weak repeated-sample hint against jittered
+probes. Stop at the first value equal to the pivot; if none match, use a two-way
+pass. This verification is limited to active lengths >= 1024 and interior ranks
+outside the outer eighths. Every variant retains the existing work budget.
+
+| Variant | Policy |
+| --- | --- |
+| `verified-duplicates` | 16 probes, otherwise the fixed post-small-input policy; compare with `adaptive-control` |
+| `verified-control` | Conservative per-pass growing-sample/block policy in the shared experimental driver, without hint verification |
+| `verified-guarded` | The experimental control plus 16-probe verification |
+| `verified8`, `verified32` | The same verification with 8 or 32 strata |
+
+Compare the combined variants with `verified-control`; the public `kth` series
+shows the unchanged default; `isolated` exposes the guarded entry-dispatch experiment. These are benchmark-only variants,
+not production dispatch changes.
+
+A short 1,128-row screen of the first three variants covered 188 groups, with
+eight banks and the same 20-sample settings as above. A separate quiet 72-row
+confirmation compared the three probe counts, their control, `kth`, and `std`
+on twelve focused groups. It used sixteen seeded banks, 60 flat samples, 150 ms
+warmup, 600 ms measurement, and 10,000 resamples, pinned to CPU 8. No local builds
+or other measurements overlapped this confirmation.
+
+| Case | n | Control | 16 probes | Change |
+| --- | ---: | ---: | ---: | ---: |
+| u8 random median | 65,536 | 64.44 µs | 47.25 µs | −26.7% |
+| u8 sawtooth median | 65,536 | 77.35 µs | 65.47 µs | −15.4% |
+| u8 sawtooth median | 4,096 | 6.57 µs | 6.56 µs | −0.2% |
+| u8 dominant median | 4,096 | 1.660 µs | 1.665 µs | +0.3% |
+| 64-byte sawtooth median | 65,536 | 272.44 µs | 174.37 µs | −36.0% |
+
+The sixteen-probe candidate's worst confirmed loss was 3.6% on u64 clustered
+p01, compared with 8.2% and 7.3% for eight and thirty-two probes. That tail rank
+does not enable verification, so this difference also illustrates code-generation
+and timing sensitivity. The large structured sawtooth gains did not carry over
+to the other probe counts. More probes are not uniformly better. Sixteen probes
+beat `std` by 18.0% on the large random-byte median in this cohort, still short
+of a 20% margin. The explicit histogram API remains the stronger byte path.
+
+Reproduce the focused probe-count comparison with:
+
+```sh
+KTH_BENCH_SIZES=4096,65536 KTH_BENCH_TYPES=u8,u64,64-byte KTH_BENCH_RANKS=p01,median KTH_BENCH_INPUTS=16 KTH_BENCH_FLAT=1 taskset -c 8 cargo bench --manifest-path benchmarks/Cargo.toml --features experiments --bench selection -- 'selection/(u8/(random|sawtooth|dominant|clustered)/median|u64/clustered/p01|64-byte/sawtooth/median)/(kth|std|verified-control|verified-guarded|verified8|verified32)/' --sample-size 60 --warm-up-time 0.15 --measurement-time 0.6 --nresamples 10000 --noplot
+```
+
+The archive retains raw samples, commands, source snapshots, and binaries in
+`target/perf-improvements/`. Earlier overlapping-build cohorts are diagnostic
+only; use the separately labeled quiet confirmations for promotion evidence.

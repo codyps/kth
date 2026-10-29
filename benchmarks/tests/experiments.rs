@@ -26,6 +26,11 @@ fn adaptive_candidates_preserve_partition_contract_on_ordered_and_mixed_inputs()
             adaptive::bounded_duplicates,
             adaptive::guarded_cyclic,
             adaptive::combined,
+            adaptive::verified_duplicates,
+            adaptive::verified_guarded,
+            adaptive::verified_control,
+            adaptive::verified8,
+            adaptive::verified32,
         ] {
             let mut actual = input.to_vec();
             select(&mut actual, k);
