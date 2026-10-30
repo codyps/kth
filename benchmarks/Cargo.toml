@@ -65,3 +65,9 @@ required-features = ["experiments"]
 name = "pivot_tuning"
 path = "tests/pivot_tuning.rs"
 required-features = ["experiments"]
+
+
+[[bench]]
+name = "record_experiments"
+harness = false
+required-features = ["experiments"]

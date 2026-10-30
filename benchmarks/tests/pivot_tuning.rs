@@ -1,5 +1,7 @@
 #[path = "../benches/support/before_followup.rs"]
 mod before;
+#[path = "../benches/support/block_tuning.rs"]
+mod block;
 #[path = "../benches/support/ordered_hint.rs"]
 mod ordered;
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -60,5 +62,60 @@ fn ordered_pivots_preserve_contract_at_thresholds_and_on_misleading_samples() {
                 check(&owned, n / 2);
             }
         }
+    }
+}
+
+#[test]
+fn buffered_records_preserve_contract_with_readonly_index_samples() {
+    let mut rng = StdRng::seed_from_u64(2026102902);
+    for n in [
+        65usize, 127, 128, 129, 255, 256, 257, 1023, 1024, 1025, 16383, 16384, 16385,
+    ] {
+        for pattern in 0..7 {
+            let input: Vec<[u64; 8]> = (0..n)
+                .map(|i| {
+                    let v = match pattern {
+                        0 => rng.random(),
+                        1 => i as u64,
+                        2 => (n - i) as u64,
+                        3 => (i % 7) as u64,
+                        4 if i % 10 == 0 => rng.random(),
+                        4 => 5,
+                        5 => i.min(n - 1 - i) as u64,
+                        _ => 0,
+                    };
+                    [v; 8]
+                })
+                .collect();
+            let mut expected = input.clone();
+            expected.sort_unstable();
+            for k in [1, n / 100, n / 2, n * 99 / 100, n - 2] {
+                for select in [block::select, block::indexed, kth::partition_by_kth] {
+                    let mut a = input.clone();
+                    select(&mut a, k);
+                    assert_eq!(a[k], expected[k]);
+                    assert!(a[..k].iter().all(|v| v <= &a[k]));
+                    assert!(a[k + 1..].iter().all(|v| v >= &a[k]));
+                    a.sort_unstable();
+                    assert_eq!(a, expected);
+                }
+            }
+        }
+    }
+    let input: Vec<[Box<u64>; 8]> = (0..16384)
+        .map(|_| {
+            let v = rng.random();
+            std::array::from_fn(|_| Box::new(v))
+        })
+        .collect();
+    let mut expected = input.clone();
+    expected.sort_unstable();
+    for select in [block::select, block::indexed, kth::partition_by_kth] {
+        let mut a = input.clone();
+        select(&mut a, 8192);
+        assert!(a[..8192].iter().all(|v| v <= &a[8192]));
+        assert!(a[8193..].iter().all(|v| v >= &a[8192]));
+        a.sort_unstable();
+        assert_eq!(a, expected);
     }
 }

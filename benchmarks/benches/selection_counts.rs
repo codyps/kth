@@ -3,6 +3,9 @@
 #[path = "support/before_followup.rs"]
 mod before_followup;
 #[cfg(feature = "experiments")]
+#[path = "support/block_tuning.rs"]
+mod block_tuning;
+#[cfg(feature = "experiments")]
 #[path = "support/ordered_hint.rs"]
 mod ordered_hint;
 use kth::instrumentation::{self, Counts, Phase};
@@ -89,6 +92,9 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                 "fr-sample-block",
                 "network16",
                 "before-followup",
+                "fixed-entry",
+                "block-offsets",
+                "index-sample-block",
                 "ordered-hint",
                 "isolated",
                 "adaptive-control",
@@ -176,6 +182,12 @@ impl<W: Write> selection_cases::Runner for Counter<W> {
                         "network16" => experiments::network16(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "before-followup" => before_followup::select(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "fixed-entry" => kth::benchmark_fixed_partition_by_kth(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "block-offsets" => block_tuning::select(&mut values, k),
+                        #[cfg(feature = "experiments")]
+                        "index-sample-block" => block_tuning::indexed(&mut values, k),
                         #[cfg(feature = "experiments")]
                         "ordered-hint" => ordered_hint::select(&mut values, k),
                         #[cfg(feature = "experiments")]

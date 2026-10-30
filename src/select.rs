@@ -4,6 +4,9 @@ use crate::instrumentation::{self, Phase};
 use crate::quickselect::{hoare_partition, median3_index, quickselect, repeated_step3};
 use core::{cmp::Ordering, mem::size_of};
 
+#[path = "select_record.rs"]
+pub(super) mod record;
+
 pub(crate) fn select<T: Ord>(a: &mut [T], k: usize) {
     assert!(
         k < a.len(),

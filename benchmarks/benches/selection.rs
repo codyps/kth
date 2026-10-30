@@ -3,6 +3,9 @@
 #[path = "support/before_followup.rs"]
 mod before_followup;
 #[cfg(feature = "experiments")]
+#[path = "support/block_tuning.rs"]
+mod block_tuning;
+#[cfg(feature = "experiments")]
 #[path = "support/ordered_hint.rs"]
 mod ordered_hint;
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
@@ -116,6 +119,9 @@ impl selection_cases::Runner for Timing<'_> {
             register!("fr-sample-block", experiments::fr_sample_block);
             register!("network16", experiments::network16);
             register!("before-followup", before_followup::select);
+            register!("fixed-entry", kth::benchmark_fixed_partition_by_kth);
+            register!("block-offsets", block_tuning::select);
+            register!("index-sample-block", block_tuning::indexed);
             register!("ordered-hint", ordered_hint::select);
             register!("isolated", kth::benchmark_adaptive_partition_by_kth);
             register!("adaptive-control", adaptive::adaptive_control);

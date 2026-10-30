@@ -507,3 +507,72 @@ as balanced bank measurements without checking their iteration counts. The
 standalone perf driver already rotates over its entire repeated loop. Structured
 distributions generally use one deterministic input; configured bank counts
 refer to the seeded random-input banks.
+
+## Buffering disordered wide records
+
+The next default improvement targets records of at least 64 bytes, slices of
+at least 16,384 elements and ranks outside the outer eighths. Three contiguous
+16-element windows estimate changes in the partition predicate. Repeated keys
+or predictable windows retain the original selector. Adjacent probes avoid the
+false disorder signal from sampling distant phases of periodic ramps.
+
+Accepted inputs use two 128-byte offset buffers and pairwise swaps to partition
+without a branch on every element. Large central partitions refine the pivot
+with a read-only stratified sample of indices: an odd square-root sample capped
+at 255 positions, selected at the requested relative rank. The index array takes
+2,040 bytes on a 64-bit host. Narrowed partitions keep buffering down to length
+1,024. The original four-times-length work budget and deterministic fallback
+remain in place. There is no allocation or new unsafe code; cyclic partitioning
+stays a benchmark variant.
+
+The original selector is shared through one outlined entry for wide records,
+including the `fixed-entry` benchmark control. This matters: an earlier candidate
+compiled the identical fallback under different inlining contexts and almost
+doubled periodic-17 median time. The final 64-group periodic/low-cardinality
+stress sweep differs from its direct fixed-policy control by at most 1.34%.
+The 33-byte candidate remains experimental. Smaller types keep the original
+selector; profiler function addresses confirm shared entries for scalar and
+string controls.
+
+Final corrected-bank measurements contain 1,194 timing rows in six cohorts,
+with matched operation counts for 600 rows. Measurements use CPU 8, immutable
+binaries, separate build/test periods and continuing input-bank rotation.
+Main rank runs use 40 flat samples, 50 ms warmup, 250 ms measurement and 5,000
+resamples over sixteen random banks. Wide and interior-rank confirmations use
+eight banks and 300 ms measurement; million-element runs use four banks.
+Stress and other-type screens use shorter settings, retained in their commands.
+
+| Random median | Elements | Fixed policy | New default | std | Reduction vs std |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 64-byte | 16,384 | 101.29 µs | 35.45 µs | 51.81 µs | 31.6% |
+| 64-byte | 65,536 | 406.73 µs | 133.22 µs | 206.09 µs | 35.4% |
+| 64-byte | 1,048,576 | 6.70 ms | 3.41 ms | 6.15 ms | 44.5% |
+| 128-byte | 16,384 | 112.36 µs | 57.25 µs | 125.40 µs | 54.3% |
+| 128-byte | 65,536 | 429.15 µs | 211.98 µs | 485.09 µs | 56.3% |
+
+Separate `perf stat -r 3` profiles support the branch-pressure diagnosis.
+For 5,000 selections of 65,536 random 64-byte records, cycles fall from 11.08B
+to 5.18B and branch misses from 271.70M to 11.03M. Instructions rise from
+15.17B to 17.04B: buffering trades predictable classification work for fewer
+misses. These whole-process profiles include setup, validation and buffer
+resets, so their ratios differ from selector-only timings. Operation counts
+show comparisons per element falling from 2.283 to 1.763 and bytes moved per
+element from 94.45 to 71.90. Periodic-17 profile cycles are effectively unchanged
+at 5.44B. Sampling with `perf record` remains unavailable under the container's
+PID namespace restrictions; counter measurements work.
+
+This does not meet the every-case target. The final rank cohort clears a 20%
+time reduction against std in 141 of 200 groups, including many unchanged
+paths. The interior-rank confirmation clears all eight groups. Small records,
+33-byte random records, some scalar/string inputs and ordered 128-byte records
+still miss the target. Short unchanged paths also show timing variation; their
+individual percentage differences should not be read as algorithm changes.
+
+The `block-offsets` and `index-sample-block` benchmark variants retain earlier
+fixed-pivot and sampled block experiments. Their policies differ from the
+promoted entry guard. Raw commands, source and binary hashes, six final cohorts,
+operation counts and perf counters are archived under
+`target/target20-followup/record-outlined*`. The combined interactive report
+labels those final cohorts separately from earlier rejected production trials
+and pre-rotation-fix measurements. `record-goal-check.csv` lists every final
+matched comparison against std, including misses.
