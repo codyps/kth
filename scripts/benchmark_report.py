@@ -302,7 +302,8 @@ def render_coverage(rows, output, short, linear):
     if not selected:
         return ""
     index = []
-    for case in dict.fromkeys(r["case"] for r in selected):
+    case_order = {case: i for i, case in enumerate(coverage_cases())}
+    for case in sorted({r["case"] for r in selected}, key=lambda case: (case_order.get(case, len(case_order)), case)):
         points = [r for r in selected if r["case"] == case]
         kind, distribution, rank = case.split("/")
         name = "coverage-" + case.replace("/", "-")
@@ -339,11 +340,15 @@ def render_coverage(rows, output, short, linear):
     links = "".join(f'<li><a href="{item["url"]}">{html.escape(item["title"])}</a> · '
                     f'<a href="{item["csv"]}">CSV</a></li>' for item in index)
     data = json.dumps(index).replace("<", "\\u003c")
+    wide_lengths = sorted({r["n"] for r in selected if r["case"] in
+                           ("64-byte/random/median", "128-byte/random/median")})
+    wide_description = ("Wide-record random medians: n = " + ", ".join(f"{n:,}" for n in wide_lengths) + ". "
+                        if wide_lengths else "")
     return ('<section id="coverage"><h2>Ranks and difficult inputs</h2>'
             f'<p>{len(index)} workload/rank panels · {len(selected):,} measurements. '
             'Compare tail and interior ranks, byte concentration, organ pipes, periodic ramps, '
-            'few-unique strings and 17/32/33/64/128-byte records. Random wide-record medians '
-            'include both sides of 16,384 and extend to 1,048,576 elements. Each panel shows its actual measured lengths.</p>'
+            'few-unique strings and 17/32/33/64/128-byte records. ' + wide_description +
+            'Each panel shows its actual measured lengths.</p>'
             '<div class="case-controls"><label for="coverage-case">Input <select id="coverage-case">' + options +
             '</select></label><label for="coverage-rank">Rank <select id="coverage-rank">' + rank_options +
             '</select></label></div>'
@@ -471,6 +476,10 @@ th,td{padding:.5rem;text-align:left;border-bottom:1px solid #d5deeb}pre{white-sp
 .notice{padding:1rem;background:#fff1d6;border-radius:8px}</style>
 <h1>kth benchmark comparisons</h1><p class="notice">WARNING_TEXT</p>
 RUN_LINK
+<p>Choose an input and rank below. Libraries keep consistent colors and distinct markers across charts.
+Use <strong>Highlight</strong> to follow one library, or hover a point to see its name and timing.</p>
+<nav><a href="#coverage">Ranks and difficult inputs</a><a href="#scaling">Performance by input size</a><a href="#partition">Partition</a><a href="#median-only">Median only</a></nav>
+<details><summary>Chart controls and measurement method</summary>
 <p>Each library keeps the same color and marker across charts. Rust's built-in selector uses a
 dash-dot line with square markers; full-sort baselines use dashed or dotted lines.
 Use <strong>Highlight</strong> to follow one library while retaining the others as faint context.
@@ -493,7 +502,7 @@ Fixed-case ratios divide mean time by kth's mean in the same panel. Scaling rati
 baseline at each input size; below 1× means faster than that baseline.
 Whiskers describe individual means, not uncertainty in the ratios.
 In multiplier views, confidence bands are divided by the baseline mean and do not include baseline uncertainty.</p>
-<nav><a href="#coverage">Ranks and difficult inputs</a><a href="#scaling">Performance by input size</a><a href="#partition">Partition</a><a href="#median-only">Median only</a></nav>
+</details>
 SECTIONS
 <h2>Run details</h2><p><a href="results.json">Measurements and provenance (JSON)</a></p>
 <details><summary>Compiler, machine, dependency versions, and sampling profile</summary><pre>METADATA</pre></details>

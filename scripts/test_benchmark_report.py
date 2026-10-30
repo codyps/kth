@@ -139,6 +139,8 @@ class CriterionResultsTest(unittest.TestCase):
         self.assertIn('id="coverage-rank"', markup)
         self.assertIn('src="coverage-u8-random-median.html"', markup)
         self.assertIn('128-byte · Seeded random · Median', markup)
+        self.assertIn('Wide-record random medians: n = 16,383, 16,385.', markup)
+        self.assertNotIn('1,048,576', markup)
         with (self.raw / 'coverage-u8-random-p01.csv').open() as source:
             data = list(csv.DictReader(source))
         self.assertEqual({int(r["k"]) for r in data}, {163})

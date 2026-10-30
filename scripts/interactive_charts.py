@@ -52,6 +52,7 @@ def chart_html(figure, name):
             changes['title.text'] = narrow.matches && parts.length > 2 ?
               parts.slice(0, 2).join(' · ') + '<br>' + parts.slice(2).join(' · ') : originalTitle;
             changes['title.font.size'] = narrow.matches ? 15 : 18;
+            chart.querySelector('.modebar').style.top = narrow.matches ? '44px' : '0px';
             if (highlight === 2) changes['updatemenus[1].y'] = 1 + 85 / plotHeight;
             changes[`updatemenus[${highlight}].x`] = narrow.matches || highlight === 1 ? 0 : 1;
             changes[`updatemenus[${highlight}].xanchor`] = narrow.matches || highlight === 1 ? 'left' : 'right';
