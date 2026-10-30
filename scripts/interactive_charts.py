@@ -41,7 +41,7 @@ def chart_html(figure, name):
             const changes = {
               'legend.orientation': narrow.matches ? 'h' : 'v',
               'legend.x': narrow.matches ? 0 : 1.02,
-              'legend.y': narrow.matches ? -45 / plotHeight : 1,
+              'legend.y': narrow.matches ? -70 / plotHeight : 1,
               'legend.xanchor': 'left', 'legend.yanchor': 'top',
               'margin.r': narrow.matches ? 25 : 295,
               'margin.l': narrow.matches ? (DEFAULT_LEFT_MARGIN === 100 ? 70 : 170) : DEFAULT_LEFT_MARGIN,
@@ -89,13 +89,30 @@ def scale_buttons(figure, xaxes, yaxes=(), linear=True):
         return {key: value for axis in (*xaxes, *yaxes)
                 for key, value in ((f"{axis}.type", kind), (f"{axis}.autorange", True))}
 
+    buttons = [
+        {"label": "Log axes" if yaxes else "Log time", "method": "relayout", "args": [changes("log")]},
+        {"label": "Linear axes" if yaxes else "Linear time", "method": "relayout", "args": [changes("linear")]},
+    ]
+    active = 1 if linear else 0
+    if yaxes:
+        ticks = sorted({n for trace in figure.data for n in trace.x})
+        for button in buttons:
+            button["args"][0].update({"xaxis.tickvals": ticks,
+                                      "xaxis.title.text": "Number of elements n"})
+        categories = list(map(str, ticks))
+        evenly_spaced = {"xaxis.type": "category", "xaxis.categoryorder": "array",
+                         "xaxis.categoryarray": categories, "xaxis.tickvals": categories,
+                         "xaxis.autorange": True,
+                         "xaxis.title.text": "Measured sizes (even spacing)<br>labels show actual n"}
+        buttons.append({"label": "Even sample spacing", "method": "relayout", "args": [evenly_spaced]})
+        # Dispatch-boundary neighbors cannot be read separately on a log axis.
+        # Keep the actual n in the data, hover, ratios and CSV; only spacing changes.
+        if not linear and any(b / a < 1.02 for a, b in zip(ticks, ticks[1:])):
+            active = 2
+            figure.update_layout(**evenly_spaced)
     figure.update_layout(updatemenus=[{
         "type": "buttons", "direction": "right", "x": 1, "xanchor": "right", "y": 1.06,
-        "showactive": True, "active": 1 if linear else 0,
-        "buttons": [
-            {"label": "Log axes" if yaxes else "Log time", "method": "relayout", "args": [changes("log")]},
-            {"label": "Linear axes" if yaxes else "Linear time", "method": "relayout", "args": [changes("linear")]},
-        ],
+        "showactive": True, "active": active, "buttons": buttons,
     }])
 
 

@@ -47,6 +47,9 @@ identify overlapping lines. Choosing `Time / std::select_nth_unstable` adds a
 actual length, selected index, timings, confidence intervals and matched std
 ratios. Bands scale individual mean intervals; they are not confidence intervals
 for the ratios. SVG export captures the current interactive view.
+Panels with neighboring dispatch lengths start with evenly spaced samples so
+each point is visible. Labels, hover and ratios retain the actual lengths; the
+axis controls also offer log and linear spacing.
 
 Random focused cases rotate over sixteen seeded banks, reduced to four when
 each inline array occupies at least 64 MiB. Structured inputs use one bank.

@@ -70,6 +70,21 @@ class InteractiveChartsTest(unittest.TestCase):
                 self.assertEqual(changes[f"{axis}.type"], kind)
                 self.assertIs(changes[f"{axis}.autorange"], True)
 
+    def test_threshold_neighbors_are_visible_without_changing_actual_lengths_or_ratios(self):
+        rows = [measurement(name, n, mean) for n in (1024, 16383, 16384, 16385, 65536)
+                for name, mean in (("kth", 1000), ("std", 2000))]
+        figure = charts.scaling_figure(rows, "Threshold", COLORS)
+        self.assertEqual(figure.layout.xaxis.type, "category")
+        self.assertEqual(figure.layout.updatemenus[0].active, 2)
+        self.assertEqual(list(figure.layout.xaxis.categoryarray), ["1024", "16383", "16384", "16385", "65536"])
+        self.assertEqual(list(figure.data[2].x), [1024, 16383, 16384, 16385, 65536])
+        self.assertEqual(list(figure.layout.updatemenus[1].buttons[2].args[0]["y"][2]), [0.5] * 5)
+        restore = figure.layout.updatemenus[0].buttons[0].args[0]
+        self.assertEqual(restore["xaxis.type"], "log")
+        self.assertEqual(restore["xaxis.tickvals"], [1024, 16383, 16384, 16385, 65536])
+        linear = charts.scaling_figure(rows, "Threshold", COLORS, linear=True)
+        self.assertEqual(linear.layout.xaxis.type, "linear")
+
     def test_multiplier_views_use_baseline_at_each_actual_size(self):
         figure = charts.scaling_figure(self.rows, "Median", COLORS)
         buttons = figure.layout.updatemenus[1].buttons

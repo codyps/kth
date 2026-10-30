@@ -486,6 +486,7 @@ Use <strong>Highlight</strong> to follow one library while retaining the others 
 Hover a point to see the library/API name, time and confidence interval. Drag to zoom, use the toolbar to pan or reset,
 and click an implementation in the legend to hide it (double-click to isolate it).
 Confidence bands toggle with their lines. Use the chart buttons to switch log/linear axes.
+Neighboring dispatch sizes start with even sample spacing; the labels still show actual lengths.
 Size charts also offer absolute time or a time multiplier relative to any available implementation.
 The baseline is matched at each input size; 1× is the baseline and lower is faster.
 The toolbar exports the current view as SVG; PNG/SVG download links retain the original static views.</p>
