@@ -53,6 +53,7 @@ impl selection_cases::Runner for Timing<'_> {
         macro_rules! register {
             ($name:literal, $select:path) => {{
                 let mut validated = false;
+                let mut next = 0;
                 group.bench_function(BenchmarkId::new($name, inputs[0].len()), |b| {
                     if !validated {
                         for input in inputs {
@@ -68,7 +69,6 @@ impl selection_cases::Runner for Timing<'_> {
                         }
                         validated = true;
                     }
-                    let mut next = 0;
                     b.iter_batched_ref(
                         || {
                             let values = inputs[next % inputs.len()].clone();

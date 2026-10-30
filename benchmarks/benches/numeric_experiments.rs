@@ -24,6 +24,7 @@ fn bench<T: Ord + Clone + Debug>(
     }
     group.throughput(Throughput::Elements(bank[0].len() as u64));
     let mut validated = false;
+    let mut next = 0;
     group.bench_function(BenchmarkId::new(algorithm, bank[0].len()), |b| {
         if !validated {
             for input in bank {
@@ -39,7 +40,6 @@ fn bench<T: Ord + Clone + Debug>(
             }
             validated = true;
         }
-        let mut next = 0;
         b.iter_batched_ref(
             || {
                 let a = bank[next % bank.len()].clone();
