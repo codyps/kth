@@ -83,6 +83,7 @@ jobs:
       - run: cargo test --manifest-path benchmarks/Cargo.toml --all-targets
         env:
           KTH_BENCH_SIZES: "16,65,257"
+          KTH_PAGE_SIZES: "16,65"
           KTH_BENCH_INPUTS: "2"
       - name: Check operation-count export
         run: cargo bench --manifest-path benchmarks/Cargo.toml --bench selection_counts --features instrumentation > target/selection-counts.csv

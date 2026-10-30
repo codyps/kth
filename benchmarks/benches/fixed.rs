@@ -36,7 +36,7 @@ fn rng_partitions(c: &mut Criterion) {
                 let mut rng = StdRng::seed_from_u64(42);
                 let mut input = vec![0u8; 8192];
                 rng.fill(&mut input[..]);
-                cases::validate_partition(&input, |$values, $index| {
+                cases::validate_partition(&input, input.len() / 2, |$values, $index| {
                     let _ = $index;
                     $select
                 });

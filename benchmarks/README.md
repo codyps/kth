@@ -31,6 +31,46 @@ Owned strings compare all supported selectors and both sort baselines;
 `tpt-simd-sort` is omitted there because it requires `Copy`. Borrowed strings and
 64-byte values include it.
 
+The published page also has a focused input/rank explorer. Its shared matrix in
+[`page_cases.csv`](page_cases.csv) adds 55 panels and 1,584 measurements to the
+standard 1,019 measurements. It covers first/25th/median/75th/99th-percentile
+selection, sawtooth and concentrated bytes, globally ordered bytes, organ pipes,
+17-value periodic/random inputs, few-unique strings, and 17/32/33/64/128-byte
+records. Wide random medians include 16,383/16,384/16,385 and 1,048,576 elements.
+All supported partition libraries and both full-sort baselines participate;
+typed `kth-u8` is a separate series on every byte case.
+
+The explorer loads one chart at a time. Library names appear in the legend and
+hover text; consistent colors, distinct markers and a Highlight dropdown help
+identify overlapping lines. Choosing `Time / std::select_nth_unstable` adds a
+0.8× guide for 20% lower elapsed time. Each focused panel exports CSV with the
+actual length, selected index, timings, confidence intervals and matched std
+ratios. Bands scale individual mean intervals; they are not confidence intervals
+for the ratios. SVG export captures the current interactive view.
+
+Random focused cases rotate over sixteen seeded banks, reduced to four when
+each inline array occupies at least 64 MiB. Structured inputs use one bank.
+Large arrays use one input per batch to bound temporary memory. Every measured
+adapter validates the selected element, both partition sides and the multiset
+before timing, at the requested rank. Ascending/descending bytes are sorted
+after narrowing to avoid confusing wrapped ramps with ordered inputs.
+
+The report runs the focused matrix in the same Criterion harness as the other
+libraries. `--sizes` still controls the general scaling charts;
+`--coverage-sizes` overrides focused lengths for shorter local checks:
+
+```sh
+uv run scripts/benchmark_report.py --quick --sizes 16 65 --coverage-sizes 16 65
+# Validate every adapter on the curated default inputs without collecting timings.
+cargo bench --manifest-path benchmarks/Cargo.toml --bench comparisons -- '^coverage-partition/' --test
+```
+
+Direct harness runs accept `KTH_PAGE_SIZES=16,65`; the report records and applies
+its own override, ignoring an inherited `KTH_PAGE_SIZES`. The full sampling
+profile can take several hours for the expanded matrix; `--quick` is for report
+validation and `--ci` uses the intermediate sampling profile. Raw samples,
+the exact matrix and its hash are retained with report provenance.
+
 
 Median-retrieval groups compare all nine partition/sort implementations plus
 medians on seeded u8 and u64 data. Odd lengths ensure every implementation returns
@@ -79,9 +119,10 @@ uses results from the same harness and workload.
 
 The default run uses 100 samples, three seconds of warmup, and five seconds of
 measurement per benchmark, sweeping sizes 16, 64, 256, 1,024, 4,096, 16,384, and
-65,536. This produces 987 measurements and takes roughly 132 minutes plus setup
-and analysis. Use `--sizes 16 256 4096 65536` for a shorter sweep, or add larger
-sizes such as 262144 and 1048576. Median inputs use the next odd length when
+65,536, plus the curated focused matrix. This produces 2,603 measurements and
+takes roughly six hours plus setup and analysis. Use `--sizes 16 256 4096 65536`
+and `--coverage-sizes 1024 65536` for a shorter sweep, or add larger sizes such
+as 262144 and 1048576. Median inputs use the next odd length when
 necessary; the charts show the actual length.
 
 Use `--quick` for a short validation run with visibly marked charts, or `--ci`

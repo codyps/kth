@@ -24,9 +24,9 @@ pub fn random_u64(n: usize) -> Vec<u64> {
 
 pub fn validate_partition<T: Ord + Clone + core::fmt::Debug>(
     input: &[T],
+    i: usize,
     select: impl Fn(&mut [T], usize),
 ) {
-    let i = input.len() / 2;
     let mut expected = input.to_vec();
     expected.sort_unstable();
     let mut actual = input.to_vec();
@@ -45,16 +45,38 @@ pub fn bench_partition_inputs<T: Ord + Clone + core::fmt::Debug>(
     scaling: bool,
     select: impl Fn(&mut [T], usize),
 ) {
-    for input in inputs {
-        validate_partition(input.as_ref(), &select);
-    }
+    bench_partition_inputs_at(
+        group,
+        algorithm,
+        inputs,
+        scaling,
+        inputs[0].as_ref().len() / 2,
+        select,
+    );
+}
+
+pub fn bench_partition_inputs_at<T: Ord + Clone + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    algorithm: &str,
+    inputs: &[impl AsRef<[T]>],
+    scaling: bool,
+    k: usize,
+    select: impl Fn(&mut [T], usize),
+) {
     let id = if scaling {
         BenchmarkId::new(algorithm, inputs[0].as_ref().len())
     } else {
         BenchmarkId::from_parameter(algorithm)
     };
     let mut next = 0;
+    let mut validated = false;
     group.bench_function(id, |b| {
+        if !validated {
+            for input in inputs {
+                validate_partition(input.as_ref(), k, &select);
+            }
+            validated = true;
+        }
         b.iter_batched_ref(
             || {
                 let values = inputs[next % inputs.len()].as_ref().to_vec();
@@ -62,11 +84,14 @@ pub fn bench_partition_inputs<T: Ord + Clone + core::fmt::Debug>(
                 values
             },
             |v| {
-                let i = v.len() / 2;
-                select(v, i);
+                select(v, k);
                 black_box(v);
             },
-            BatchSize::LargeInput,
+            if core::mem::size_of_val(inputs[0].as_ref()) >= 1 << 20 {
+                BatchSize::PerIteration
+            } else {
+                BatchSize::LargeInput
+            },
         )
     });
 }
@@ -113,9 +138,18 @@ pub fn partition_inputs<T: Ord + Copy + core::fmt::Debug>(
     inputs: &[impl AsRef<[T]>],
     scaling: bool,
 ) {
+    partition_inputs_at(group, inputs, scaling, inputs[0].as_ref().len() / 2);
+}
+
+pub fn partition_inputs_at<T: Ord + Copy + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    inputs: &[impl AsRef<[T]>],
+    scaling: bool,
+    k: usize,
+) {
     macro_rules! register {
         ($name:literal, $values:ident, $index:ident, $select:block) => {
-            bench_partition_inputs(group, $name, inputs, scaling, |$values, $index| {
+            bench_partition_inputs_at(group, $name, inputs, scaling, k, |$values, $index| {
                 let _ = $index;
                 $select
             });
@@ -129,9 +163,18 @@ pub fn owned_partitions<T: Ord + Clone + core::fmt::Debug>(
     inputs: &[impl AsRef<[T]>],
     scaling: bool,
 ) {
+    owned_partitions_at(group, inputs, scaling, inputs[0].as_ref().len() / 2);
+}
+
+pub fn owned_partitions_at<T: Ord + Clone + core::fmt::Debug>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    inputs: &[impl AsRef<[T]>],
+    scaling: bool,
+    k: usize,
+) {
     macro_rules! register {
         ($name:literal, $values:ident, $index:ident, $select:block) => {
-            bench_partition_inputs(group, $name, inputs, scaling, |$values, $index| {
+            bench_partition_inputs_at(group, $name, inputs, scaling, k, |$values, $index| {
                 let _ = $index;
                 $select
             });
