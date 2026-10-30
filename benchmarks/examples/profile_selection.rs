@@ -4,6 +4,9 @@
 #[path = "../benches/support/before_followup.rs"]
 mod before_followup;
 #[allow(dead_code)]
+#[path = "../benches/support/block_tuning.rs"]
+mod block_tuning;
+#[allow(dead_code)]
 #[path = "../benches/support/ordered_hint.rs"]
 mod ordered_hint;
 use std::{fmt::Debug, hint::black_box};
@@ -35,6 +38,9 @@ fn selector<T: Ord>(name: &str) -> fn(&mut [T], usize) {
     match name {
         "kth" => kth::partition_by_kth,
         "before-followup" => before_followup::select,
+        "fixed-entry" => kth::benchmark_fixed_partition_by_kth,
+        "block-offsets" => block_tuning::select,
+        "index-sample-block" => block_tuning::indexed,
         "ordered-hint" => ordered_hint::select,
         "isolated" => kth::benchmark_adaptive_partition_by_kth,
         // Validation still selects once; the repeated loop only resets buffers.
@@ -69,6 +75,13 @@ fn run<T: Ord + Clone + Debug>(
     select: fn(&mut [T], usize),
     reset_only: bool,
 ) {
+    if std::env::var_os("KTH_PROFILE_ENTRIES").is_some() {
+        println!(
+            "public={:p}, fixed={:p}",
+            kth::partition_by_kth::<T> as *const (),
+            kth::benchmark_fixed_partition_by_kth::<T> as *const ()
+        );
+    }
     let mut expected = bank[0].clone();
     expected.sort_unstable();
     let mut values = bank[0].clone();
@@ -127,9 +140,11 @@ fn main() {
                 "reverse" => (n - i) as u64,
                 "equal" => 0,
                 "sawtooth" => (i % 7) as u64,
+                "periodic17" => (i % 17) as u64,
                 "organ-pipe" => i.min(n - 1 - i) as u64,
                 "dominant" if i % 10 != 0 => 5,
-                "dominant" => (i as u64).wrapping_mul(6364136223846793005),
+                "clustered" if i < n * 9 / 10 => 5,
+                "dominant" | "clustered" => (i as u64).wrapping_mul(6364136223846793005),
                 _ => panic!("unsupported numeric case: {case}"),
             })
             .collect()]
@@ -174,6 +189,24 @@ fn main() {
                 _ => selector(algorithm),
             };
             run(&random, k, iterations, select, reset_only);
+        }
+        "33-byte" => {
+            let bank: Vec<Vec<[u8; 33]>> = random
+                .iter()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| std::array::from_fn(|i| v.to_be_bytes()[i % 8]))
+                        .collect()
+                })
+                .collect();
+            run(&bank, k, iterations, selector(algorithm), reset_only);
+        }
+        "128-byte" => {
+            let bank: Vec<Vec<[u64; 16]>> = random
+                .iter()
+                .map(|a| a.iter().map(|v| [*v; 16]).collect())
+                .collect();
+            run(&bank, k, iterations, selector(algorithm), reset_only);
         }
         "64-byte" => run(
             &inputs::wide(&random),

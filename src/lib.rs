@@ -85,7 +85,23 @@ impl<T: Ord> SliceExtKth for [T] {
 /// assert_eq!(median, 3);
 /// ```
 pub fn partition_by_kth<T: Ord>(s: &mut [T], pivot_order: usize) {
-    select::select(s, pivot_order)
+    if core::mem::size_of::<T>() >= 64 {
+        if s.len() >= 16384 {
+            select::record::select(s, pivot_order);
+        } else {
+            fixed_record_policy(s, pivot_order);
+        }
+    } else {
+        select::select(s, pivot_order);
+    }
+}
+
+// Use one outlined copy of the original large-record selector for both direct
+// calls and record-entry fallbacks. Different inlining contexts can otherwise
+// produce materially different code for the same predictable-input policy.
+#[inline(never)]
+fn fixed_record_policy<T: Ord>(s: &mut [T], k: usize) {
+    select::select(s, k)
 }
 
 /// Partition bytes around the element with the given order index.
@@ -125,4 +141,15 @@ pub mod quickselect;
 #[cfg(feature = "bench-experiments")]
 pub fn benchmark_adaptive_partition_by_kth<T: Ord>(s: &mut [T], k: usize) {
     select_adaptive::select(s, k)
+}
+
+/// Established fixed-sample selector, exposed only for controlled benchmarks.
+#[doc(hidden)]
+#[cfg(feature = "bench-experiments")]
+pub fn benchmark_fixed_partition_by_kth<T: Ord>(s: &mut [T], k: usize) {
+    if core::mem::size_of::<T>() >= 64 {
+        fixed_record_policy(s, k);
+    } else {
+        select::select(s, k);
+    }
 }

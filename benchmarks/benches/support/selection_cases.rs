@@ -126,7 +126,7 @@ impl Config {
                 assert!(
                     [
                         "u8", "u64", "String", "str", "7-byte", "9-byte", "15-byte", "16-byte",
-                        "17-byte", "31-byte", "32-byte", "33-byte", "64-byte"
+                        "17-byte", "31-byte", "32-byte", "33-byte", "64-byte", "128-byte"
                     ]
                     .contains(&name.as_str()),
                     "unknown element type: {name}"
@@ -298,7 +298,24 @@ fn bytes<const N: usize>(x: u64) -> [u8; N] {
     std::array::from_fn(|i| x.to_be_bytes()[(i + 8usize.saturating_sub(N)) % 8])
 }
 
+/// Visit just the record widths used by the focused block experiments.
+#[allow(dead_code)] // Used by the focused record benchmark.
+pub fn visit_records(config: &Config, runner: &mut impl Runner) {
+    if config.includes("128-byte", true) {
+        numeric(config, runner, "128-byte", |x| [x; 16]);
+    }
+    if config.includes("64-byte", false) {
+        numeric(config, runner, "64-byte", |x| [x; 8]);
+    }
+    if config.includes("33-byte", false) {
+        numeric(config, runner, "33-byte", bytes::<33>);
+    }
+}
+
 pub fn visit(config: &Config, runner: &mut impl Runner) {
+    if config.includes("128-byte", true) {
+        numeric(config, runner, "128-byte", |x| [x; 16]);
+    }
     if config.includes("7-byte", true) {
         numeric(config, runner, "7-byte", bytes::<7>);
     }
