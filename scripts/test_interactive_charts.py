@@ -22,7 +22,7 @@ class InteractiveChartsTest(unittest.TestCase):
 
     def test_sorted_actual_lengths_and_timing_intervals_use_microseconds(self):
         figure = charts.scaling_figure(self.rows, "Median", COLORS)
-        line = next(t for t in figure.data if t.name == "std")
+        line = next(t for t in figure.data if t.legendgroup == "std" and t.showlegend)
         self.assertEqual(list(line.x), [17, 65])
         self.assertEqual(list(line.y), [2, 8])
         self.assertEqual(list(line.customdata[0]), [1.8, 2.4, 50, 2, 2])
@@ -40,6 +40,26 @@ class InteractiveChartsTest(unittest.TestCase):
             self.assertEqual(traces[1].fill, "tonexty")
             self.assertEqual(traces[0].hoverinfo, "skip")
 
+    def test_library_identity_has_markers_full_hover_labels_and_highlight_groups(self):
+        figure = charts.scaling_figure(self.rows, "Median", COLORS)
+        kth, std = [t for t in figure.data if t.showlegend]
+        self.assertNotEqual(kth.marker.symbol, std.marker.symbol)
+        self.assertEqual(std.line.dash, "dashdot")
+        self.assertEqual(std.name, "std::select_nth_unstable")
+        self.assertIn("<b>%{fullData.name}</b>", std.hovertemplate)
+        self.assertEqual(figure.layout.legend.orientation, "v")
+        buttons = figure.layout.updatemenus[2].buttons
+        self.assertEqual(list(buttons[1].args[0]["opacity"]), [1, 1, 1, 0.12, 0.12, 0.12])
+        self.assertEqual(list(buttons[2].args[0]["opacity"]), [0.12, 0.12, 0.12, 1, 1, 1])
+        self.assertEqual(list(buttons[0].args[0]["opacity"]), [1] * 6)
+
+    def test_std_ratio_guide_means_twenty_percent_less_elapsed_time(self):
+        figure = charts.scaling_figure(self.rows, "Median", COLORS)
+        buttons = figure.layout.updatemenus[1].buttons
+        self.assertEqual([s["y0"] for s in buttons[2].args[1]["shapes"]], [1, 0.8])
+        self.assertEqual([s["y0"] for s in buttons[1].args[1]["shapes"]], [1])
+        self.assertEqual(buttons[0].args[1]["shapes"], [])
+
     def test_scale_buttons_reset_zoom_and_switch_both_axes(self):
         figure = charts.scaling_figure(self.rows, "Median", COLORS, linear=True)
         self.assertEqual(figure.layout.xaxis.type, "linear")
@@ -50,10 +70,25 @@ class InteractiveChartsTest(unittest.TestCase):
                 self.assertEqual(changes[f"{axis}.type"], kind)
                 self.assertIs(changes[f"{axis}.autorange"], True)
 
+    def test_threshold_neighbors_are_visible_without_changing_actual_lengths_or_ratios(self):
+        rows = [measurement(name, n, mean) for n in (1024, 16383, 16384, 16385, 65536)
+                for name, mean in (("kth", 1000), ("std", 2000))]
+        figure = charts.scaling_figure(rows, "Threshold", COLORS)
+        self.assertEqual(figure.layout.xaxis.type, "category")
+        self.assertEqual(figure.layout.updatemenus[0].active, 2)
+        self.assertEqual(list(figure.layout.xaxis.categoryarray), ["1024", "16383", "16384", "16385", "65536"])
+        self.assertEqual(list(figure.data[2].x), [1024, 16383, 16384, 16385, 65536])
+        self.assertEqual(list(figure.layout.updatemenus[1].buttons[2].args[0]["y"][2]), [0.5] * 5)
+        restore = figure.layout.updatemenus[0].buttons[0].args[0]
+        self.assertEqual(restore["xaxis.type"], "log")
+        self.assertEqual(restore["xaxis.tickvals"], [1024, 16383, 16384, 16385, 65536])
+        linear = charts.scaling_figure(rows, "Threshold", COLORS, linear=True)
+        self.assertEqual(linear.layout.xaxis.type, "linear")
+
     def test_multiplier_views_use_baseline_at_each_actual_size(self):
         figure = charts.scaling_figure(self.rows, "Median", COLORS)
         buttons = figure.layout.updatemenus[1].buttons
-        self.assertEqual([b.label for b in buttons], ["Time (µs)", "Time / kth", "Time / std"])
+        self.assertEqual([b.label for b in buttons], ["Time (µs)", "Time / kth (generic)", "Time / std::select_nth_unstable"])
         data, layout = buttons[1].args
         # Trace order per implementation is lower bound, upper bound, mean.
         self.assertEqual(list(data["y"][2]), [1, 1])
@@ -83,7 +118,7 @@ class InteractiveChartsTest(unittest.TestCase):
     def test_missing_kth_point_leaves_gap_and_keeps_absolute_values(self):
         rows = [r for r in self.rows if not (r["algorithm"] == "kth" and r["n"] == 65)]
         figure = charts.scaling_figure(rows, "Median", COLORS)
-        std = next(t for t in figure.data if t.name == "std")
+        std = next(t for t in figure.data if t.legendgroup == "std" and t.showlegend)
         self.assertEqual(list(std.y), [2, 8])
         self.assertIsNone(std.customdata[1][3])
         ratios = figure.layout.updatemenus[1].buttons[1].args[0]["y"]
@@ -93,7 +128,7 @@ class InteractiveChartsTest(unittest.TestCase):
         rows = [measurement("kth", None, 1000), measurement("std", None, 2000),
                 measurement("kth", None, 2000, "second"), measurement("std", None, 8000, "second")]
         figure = charts.fixed_figure(rows, "Fixed", {"first": "First", "second": "Second"}, COLORS)
-        std = [t for t in figure.data if t.name == "std"]
+        std = [t for t in figure.data if t.legendgroup == "std"]
         self.assertEqual([t.customdata[0][3] for t in std], [2, 4])
         self.assertEqual(list(std[0].error_x.array), [0.4])
         self.assertEqual(list(std[0].error_x.arrayminus), [0.2])
