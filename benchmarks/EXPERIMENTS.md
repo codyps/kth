@@ -491,3 +491,19 @@ These support less summation/initialization work on small dispersed bytes and
 shorter dependent counter-update chains on dominant values. Global counters
 are not sampled source-line attribution. The archive at `target/target20-followup/`
 retains the final commands, source snapshots, binaries, samples and counters.
+
+## Input rotation across Criterion callbacks
+
+The timing harness keeps the input-bank cursor outside Criterion's callback.
+Criterion invokes that callback separately for its iteration counts, including
+individual samples. A cursor initialized inside the callback can keep selecting
+the first bank when there is only one iteration per sample, or overweight the
+first few banks when the iteration count is small. The cursor now continues
+across those calls in the selection, numeric and cross-library harnesses.
+Cloning and validation remain outside the measured selector.
+
+Earlier snapshots preserve their original behavior and should not be described
+as balanced bank measurements without checking their iteration counts. The
+standalone perf driver already rotates over its entire repeated loop. Structured
+distributions generally use one deterministic input; configured bank counts
+refer to the seeded random-input banks.

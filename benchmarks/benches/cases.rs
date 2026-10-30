@@ -53,8 +53,8 @@ pub fn bench_partition_inputs<T: Ord + Clone + core::fmt::Debug>(
     } else {
         BenchmarkId::from_parameter(algorithm)
     };
+    let mut next = 0;
     group.bench_function(id, |b| {
-        let mut next = 0;
         b.iter_batched_ref(
             || {
                 let values = inputs[next % inputs.len()].as_ref().to_vec();
