@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/codyps/kth/compare/v0.1.1...v0.1.2) - 2026-10-30
+
+### Added
+
+- make benchmark plots interactive
+
+### Fixed
+
+- give interactive charts unique element IDs
+
+### Other
+
+- Separate neighboring dispatch sizes on benchmark charts
+- Keep charts prominent and show measured focused lengths
+- Expand published benchmarks and clarify library identities
+- Buffer disordered wide records with rank-aware index sampling
+- rotate input banks across Criterion samples
+- adapt histogram lanes to dispersed bytes
+- clarify periodic byte benchmark inputs
+- tune histogram lanes for concentrated bytes
+- Merge opt-in guarded experiment infrastructure
+- isolate guarded selection and preserve the production default
+- verify duplicate hints with jittered probe counts
+- preserve fixed drivers for repeated samples and shorter inputs
+- outline the large driver to stabilize scalar code generation
+- gate growing samples and buffer disordered large records
+- compare guarded sampling, duplicate hints, and cyclic kernels
+- add allocation-free histogram selection for bytes
+- Merge remote-tracking branch 'origin/main' into codex/selection-experiment-suite
+- add selection experiments and perf profiling driver
+- Merge main and integrate small-slice operation counts
+- speed up selection on small slices
+- add rank-aware pivots and efficient duplicate partitioning
+- improve string selection and expand comparison coverage
+- use sampled quickselect with a bounded deterministic fallback
+- unify library comparisons and add relative-time charts
+- move maintainer and benchmark details out of README
+- compare all selectors for median retrieval
+- remove redundant Nix jobs
+- follow the default branch rename to main
+- generate benchmark reports and publish GitHub Pages
+- add selector comparisons and performance scaling reports
+- Create release PRs with the dedicated GitHub App
+
 ## [0.1.1](https://github.com/codyps/kth/compare/v0.1.0...v0.1.1) - 2026-10-28
 
 ### Fixed
